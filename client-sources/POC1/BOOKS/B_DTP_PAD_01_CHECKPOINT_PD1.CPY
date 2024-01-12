@@ -1,0 +1,4 @@
+           CHANGE ATTRIBUTE LIBACCESS OF " MCPSUPPORT" TO BYFUNCTION.
+           CHANGE ATTRIBUTE FUNCTIONNAME OF " MCPSUPPORT"
+                                                    TO " MCPSUPPORT".
+           PERFORM 5000-CHECKPOINT.
