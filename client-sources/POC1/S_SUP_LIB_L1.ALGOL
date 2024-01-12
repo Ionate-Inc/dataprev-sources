@@ -1,0 +1,4754 @@
+$ SET SHARING=SHAREDBYALL
+$ RESET LIST
+$ VERSION 35.290.3577
+$ SET INSTALLATION 1
+BEGIN
+INTEGER VALIDA;
+INTEGER PROCEDURE ZABREV(PPF,TFX,PPD,TDX,AAT);
+%                 ------
+%% Z A B R E V %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : MOVER UM CAMPO DE NOME DE PESSOA DE UMA LOCACAO PARA   %
+%:              OUTRA, ABREVIANDO SEUS CONSTITUINTES, QUANDO NECESSARIO%
+%:              E POSSIVEL, SEGUNDO O CRITERIO ESTABELECIDO PELA "SDT" %
+%:              NA CONHECIDA "ROTINA DE ABREVIAR NOMES".               %
+%:              O PRESENTE TRABALHO E UMA MERA RECODIFICACAO DO CITADO %
+%:              ALGORITMO.                                             %
+%:                                                                     %
+%: PARAMETROS :                                                        %
+%:         PF - POINTER PARA O BYTE INICIAL DO CAMPO ORIGINAL.         %
+%:               (EM COBOL, ITEM DISPLAY).                             %
+%:                                                                     %
+%:         TF - TAMANHO, EM BYTES, DO CAMPO ORIGINAL.                  %
+%:               (EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO).   %
+%:                                                                     %
+%:         PD - POINTER PARA O BYTE INICIAL DO CAMPO DE DESTINO.       %
+%:               (EM COBOL, ITEM DISPLAY).                             %
+%:                                                                     %
+%:         TD - TAMANHO, EM BYTES, DO CAMPO DE DESTINO.                %
+%:               (EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO).   %
+%:                                                                     %
+%:         AT - ARRAY UTILIZADO COMO AREA DE TRABALHO. SEU COMPRIMENTO,%
+%:              EM PALAVRAS, E CALCULADO PELA EXPRESSAO (2*TF/3+3).    %
+%:               (EM COBOL, ITEM 01 COMP).                             %
+%:                                                                     %
+%: RESULTADOS :                                                        %
+%:               (ZERO) SIGNIFICA OPERACAO BEM SUCEDIDA                %
+%:               ( -1 ) SIGNIFICA IMPOSSIBILIDADE DE ABREVIAR O CAMPO  %
+%:                      NO TAMANHO DESEJADO, SENDO O CAMPO DE DESTINO  %
+%:                      PREENCHIDO COM ASTERISCOS.                     %
+%:                                                                     %
+%: OBSERVACOES:                                                        %
+%:              1) O ARRAY "AT" NAO DEVE SER UTILIZADO PARA OUTRO FIM. %
+%:                                                                     %
+%:              2) UM EXEMPLO P/ CHAMADA EM COBOL:                     %
+%:                 COMPUTE TALLY=ZABREV(NOME-ORIG 45 NOME-ABRV 30 ATR).%
+%:                                                                     %
+%: - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - %
+%:                                                                     %
+$ PAGE
+EBCDIC ARRAY PPF[0],PPD[0];
+INTEGER TFX,TDX;
+EBCDIC ARRAY  AAT[0];
+%
+BEGIN
+LABEL   FIM;
+ARRAY AT[0]=AAT[*];
+POINTER PF,PD;
+INTEGER TF,TD;
+REAL    I,J,K,L,N,T,X;
+POINTER P;
+EBCDIC ARRAY E[0] = AT;
+VALUE ARRAY T1(4"08""SOBR"4"00",
+               4"04""NETO"4"02",
+               4"06""JUNI"4"04",
+               4"05""FILH"4"06");
+EBCDIC VALUE ARRAY T2("SOBRINHO"48"02""SB",
+                      "NETO"    48"02""NT",
+                      "JUNIOR"  48"02""JR",
+                      "FILHO"   48"02""FO");
+DEFINE  INOM = X.[47:16] #,
+        TNOM = X.[31:08] #;
+PF:=PPF; PD:=PPD;
+TF:=TFX; TD:=TDX;
+IF AT[0] < (TF/2 + 1) THEN
+   BEGIN
+     K:=(AT[0]:=TF/2+1) + TF/6+2;
+     RESIZE(AAT,K*6,RETAIN);
+   END;
+%
+P:=PF;
+J:=K:=TF;
+SCAN P:P FOR K:K WHILE = " ";
+WHILE K>1 DO BEGIN
+             L:=*+(J-K);                     % ACUM BRANC ENTRE NOMES
+             INOM:=TF-K;                     % CALC IND NOME
+             SCAN P:P FOR K:K UNTIL = " ";
+             J:=K;
+             SCAN P:P FOR K:K WHILE = " ";
+             TNOM:=TF-J-INOM+REAL(K>0);      % CALC TAM NOME
+             T:=*+TNOM;                      % ACUMULAR TAM NOME
+             AT[I:=*+1]:=X;                  % GUARD DESCRIT NOME
+             END;
+IF T LEQ TD THEN
+  IF I=L+1 THEN BEGIN
+                REPLACE PD BY PF FOR T , " " FOR TD-T;
+                GO FIM;
+                END;
+%
+J:=AT[0]*6;                   % IND RASC CAMPO ORIG
+K:=I;                         % IND DESCRIT ULT NOME
+REPLACE E[J] BY PF FOR TF;    % CAMPO ORIG P/ RASC
+IF T > TD THEN
+  BEGIN
+  WHILE I>1 AND T>TD DO
+    BEGIN                     % TENT ABREV
+      X:=AT[I];
+      IF I=K THEN             % TEST DESCRIT ULT NOME
+        IF I>2 THEN
+          IF L:=ARRAYSEARCH(0 & X[47:31:8] & REAL(E[INOM+J],4)[39:32]
+                           ,40"FFFFFFFFFF",T1) GEQ 0 THEN
+            IF E[INOM+J] = T2[L:=T1[L].[7:8]*6] FOR TNOM THEN
+              BEGIN
+              T:=*-TNOM;
+              TNOM:=REAL(T2[L:=*+TNOM],1);
+              REPLACE E[INOM+J] BY T2[L+1] FOR TNOM;
+              T:=*+TNOM;
+              AT[I]:=X;
+              N:=I-1;         % INIB ABREV NOME ANTER
+              END
+            ELSE
+          ELSE
+        ELSE
+      ELSE
+      IF TNOM>4 THEN
+        IF I NEQ N THEN                      % TEST ABREV INIB
+                     BEGIN
+                     REPLACE E[INOM+J+1] BY " ";
+                     T:=*-TNOM+2;            % CORRIG ACUM TAM
+                     TNOM:=2;                % CORRIG TAM NOME
+                     AT[I]:=X;               % GUARD DESCRIT NOME
+                     END;
+      I:=*-1;
+    END;       %                             % OF WHILE LOOP
+  IF T>TD THEN BEGIN                         % N. ABREV
+               REPLACE PD BY "*" FOR TD;
+               ZABREV:=-1;
+               GO FIM;
+               END;
+  END;    %
+I:=0;
+WHILE I:=*+1 LEQ K DO BEGIN
+                      X:=AT[I];
+                      REPLACE PD:PD BY E[INOM+J] FOR TNOM;
+                      END;
+REPLACE PD BY " " FOR TD-T;
+%
+FIM:
+END OF ZABREV;
+$ PAGE
+INTEGER PROCEDURE ZABREVA (PPF, TFX, PPD, TDX, AAT);
+COMMENT
+         INTRINSIC NUMBER = 140,58 ;
+ $ SET OMIT
+
+            *** INTRINSECO DE ABREVIACAO DE NOMES ***
+                      REAL PROCEDURE ZABREV
+
+        ESTA PROCEDURE ABREVIA NOMES DE PESSOAS SEGUNDO O CRITERIO
+ESTABELECIDO PELA SDT NO "ALGORITMO PARA ABREVIACAO DE NOMES",
+TRANSCRITO ABAIXO. SOLICITADA A ELABORACAO PELA GD APG-AAS NUMERO
+APG 172/82 DE 17/08/82.
+
+PARAMETROS:
+1.  PF
+    POINTER BY VALUE (ENTRADA).
+    APONTA O CAMPO DO NOME ORIGINAL.
+    EM COBOL, ITEM DISPLAY.
+2.  TF
+    REAL BY VALUE (ENTRADA).
+    TAMANHO DO CAMPO DO NOME ORIGINAL.
+    EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO.
+3.  PD
+    POINTER BY VALUE (SAIDA).
+    APONTA O CAMPO DO NOME ABREVIADO.
+    EM COBOL, ITEM DISPLAY.
+4.  TD
+    REAL BY VALUE (ENTRADA).
+    TAMANHO DO CAMPO DO NOME ABREVIADO.
+    EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO.
+5.  AT
+    ARRAY REAL [0] (TRABALHO).
+    AREA DE TRABALHO PARA:
+    I.   A TABELA DE ELEMENTOS DO NOME.
+    II.  UMA COPIA DO NOME ORIGINAL.
+    O ARRAY PODE SER DECLARADO NO PROGRAMA COM TAMANHO 1 (OU SEJA,
+    ARRAY AT[0:0]), POIS O INTRINSECO FAZ UM RESIZE CASO O TAMANHO
+    NAO SEJA SUFICIENTE. O ARRAY PODE SER USADO NO PROGRAMA PARA
+    OUTRA FINALIDADE, MAS O INTRINSECO MODIFICA O SEU CONTEUDO.
+    EM COBOL, ITEM 01 COMP.
+
+VALOR DE RETORNO:
+     0: EXECUCAO NORMAL, NOME JA ABREVIADO NO CAMPO DE SAIDA.
+    -1: ERRO, O NOME NAO PODE SER ABREVIADO. O CAMPO DE SAIDA ESTA
+        PREENCHIDO COM ASTERISCOS "*".
+
+
+           *** ALGORITMO PARA ABREVIACAO DE NOMES ***
+       ANEXO A GD NUMERO APG 127/82 (APG-AAS), DE 17/08/82
+SAO OS SEGUINTES OS PASSOS A SEREM SEGUIDOS:
+1. SUPRIMIR TODOS OS BRANCOS SUPERFLUOS NO INICIO DO NOME E ENTRE
+   NOMES.
+2. SE O ULTIMO NOME FOR "JUNIOR", "NETO", "SOBRINHO" OU "FILHO",
+   SUBSTITUIR POR "JR", "NT", "SB" OU "FO", RESPECTIVAMENTE.
+3. ABREVIAR NOMES INTERMEDIARIOS, COM EXCECAO DAS PREPOSICOES "DE",
+   "DO", "DA", "DOS", "DAS", DO PENULTIMO PARA O SEGUNDO.
+   NAO CONSIDERAR OS NOMES SUBSTITUIDOS NO ITEM 2 COMO O ULTIMO
+   NOME.
+4. SUPRIMIR PREPOSICOES ("DE", "DA", "DO", "DAS", "DOS"), DA ULTIMA
+   PARA A PRIMEIRA.
+SE, AO FINAL DE CADA PASSO, O NOME COUBER NO CAMPO RECEPTOR, A ROTINA
+PODE PARAR. NOTE-SE QUE OS PASSOS 3 E 4 SAO ITERATIVOS, E A ROTINA
+PODE PARAR AO FINAL DE CADA ITERACAO.
+
+
+RESPONSAVEL PELA ELABORACAO DO INTRINSECO:
+    GILBERTO FERREIRA DA SILVA.
+    DATAPREV - SST.
+
+DATAS:
+    09/11/82: ORIGINAL.
+
+ $ POP OMIT
+ $ PAGE
+
+INTEGER TFX, TDX;
+EBCDIC ARRAY PPF, PPD,AAT[0];
+
+BEGIN
+INTEGER TF, TD;
+ARRAY AT[0]=AAT[*];
+POINTER PF,PD;
+REAL
+    I,              % SCRATCH PARA LOOPS, ETC.
+    CHARS,          % O COMPRIMENTO DE UM DADO ELEMENTO
+    RESTA,          % CARACTERES AINDA A EXAMINAR NA ORIGEM
+    INITAB,         % INDICE DO INICIO DA TABELA DE ELEMENTOS
+    TAMTOT,         % COMPRIMENTO TOTAL DO NOME
+    ULTIMO,         % INDICE DA DESCRICAO DO ULTIMO ELEMENTO
+    PENULTIMO,      % INDICE DA DESCR. DO PENULTIMO ELEMENTO
+    DIFERENCA;      % ENTRE OS TAMANHOS DE UM ELEMENTO
+BOOLEAN
+    PREPOSICAO;     % INDICA QUE O ELEMENTO E UMA PREPOSICAO
+LABEL
+    EDIT;           % PARA A EDICAO FINAL DO NOME
+POINTER
+    P;              % SCRATCH POINTER
+EBCDIC ARRAY
+    EA[0] = AT[*];  % PARA FACILITAR A MANIPULACAO
+DEFINE
+    BRANCO = " " #, % PARA SCAN, ETC.
+    TAB (X) = AT[INITAB+(X)] #, % TABELA DE ELEMENTOS DO NOME
+    INICF = [47:16] #, % POSICAO DE INICIO DO ELEMENTO
+    TMNHF = [31:16] #, % TAMANHO (COMPRIMENTO) DO ELEMENTO
+    PREPF = [0:1] #; % INDICA SE E OU NAO UMA PREPOSICAO
+
+TF:=TFX;
+TD:=TDX;
+%
+% INICIALIZACAO.
+% PREENCHIMENTO DA TABELA DE NOMES.
+%
+PF := PPF;
+PD := PPD;
+  IF SIZE (AT) LSS I := (INITAB:=(TF+5)DIV 6) + (TF+1)DIV 2 THEN
+     RESIZE (AAT, I*6);
+TAMTOT := 0;
+P := EA[0];
+RESTA := TF;
+REPLACE P BY PF FOR TF;
+SCAN P:P FOR CHARS:RESTA WHILE EQL BRANCO;
+IF CHARS EQL 0 THEN
+    BEGIN
+    TAB[0] := 0 & (TD) TMNHF;
+    ULTIMO := 0;
+    GO TO EDIT;
+    END;
+RESTA := CHARS;
+SCAN P:P FOR CHARS:RESTA WHILE NEQ BRANCO;
+TAMTOT := CHARS := RESTA - CHARS;
+TAB[0] := 0 & (TF - RESTA) INICF & (CHARS) TMNHF;
+RESTA := * - CHARS;
+ULTIMO := 0;
+WHILE RESTA GTR 0 DO
+    BEGIN
+    SCAN P:P FOR CHARS:RESTA WHILE EQL BRANCO;
+    IF CHARS EQL 0 THEN
+        RESTA := 0
+    ELSE
+        BEGIN
+        RESTA := CHARS;
+        SCAN P:P FOR CHARS:RESTA WHILE NEQ BRANCO;
+        TAMTOT := * + 1 + (CHARS := RESTA - CHARS);
+        TAB[ULTIMO:=*+1] := 0 & (TF-RESTA) INICF & (CHARS) TMNHF;
+        RESTA := * - CHARS;
+        END;
+    END;
+IF TAMTOT LEQ TD THEN
+    GO TO EDIT;
+
+%
+% FILHO -> FL, JUNIOR -> JR, NETO -> NT, SOBRINHO -> SB.
+%
+DIFERENCA := 0;
+P := EA[TAB[ULTIMO].INICF];
+CHARS := TAB[ULTIMO].TMNHF;
+IF CHARS EQL 4 THEN
+    IF P EQL "NETO" THEN
+        BEGIN
+        REPLACE P BY "NT";
+        DIFERENCA := 2;
+        END
+    ELSE
+ELSE
+IF CHARS EQL 5 THEN
+    IF P EQL "FILHO" THEN
+        BEGIN
+        REPLACE P BY "FL";
+        DIFERENCA := 3;
+        END
+    ELSE
+ELSE
+IF CHARS EQL 6 THEN
+    IF P EQL "JUNIOR" THEN
+        BEGIN
+        REPLACE P BY "JR";
+        DIFERENCA := 4;
+        END
+    ELSE
+ELSE
+IF CHARS EQL 8 THEN
+    IF P EQL "SOBRINHO" THEN
+        BEGIN
+        REPLACE P BY "SB";
+        DIFERENCA := 6;
+        END;
+IF DIFERENCA GTR 0 THEN
+    BEGIN
+    TAMTOT := * - DIFERENCA;
+    TAB[ULTIMO] := * & (2) TMNHF;
+    IF TAMTOT LEQ TD THEN
+        GO TO EDIT;
+    PENULTIMO := ULTIMO - 2;
+    END
+ELSE
+    PENULTIMO := ULTIMO - 1;
+
+%
+% ABREVIACAO DOS NOMES INTERMEDIARIOS.
+% IDENTIFICACAO DAS PREPOSICOES.
+%
+FOR I := PENULTIMO STEP -1 UNTIL 1 DO
+    BEGIN
+    P := EA[TAB[I].INICF];
+    CHARS := TAB[I].TMNHF;
+    PREPOSICAO := FALSE;
+    IF CHARS EQL 2 THEN
+        IF P EQL "DA" OR P EQL "DE" OR P EQL "DO" THEN
+            PREPOSICAO := TRUE
+        ELSE
+    ELSE
+    IF CHARS EQL 3 THEN
+        IF P EQL "DAS" OR P EQL "DOS" THEN
+            PREPOSICAO := TRUE;
+    IF PREPOSICAO THEN
+        BOOLEAN (TAB[I]) := * & (TRUE) PREPF
+    ELSE
+        BEGIN
+        TAB[I] := * & (1) TMNHF;
+        TAMTOT := * - (CHARS - 1);
+        IF TAMTOT LEQ TD THEN
+            GO TO EDIT;
+        END;
+    END;
+
+%
+% ELIMINACAO DAS PREPOSICOES.
+%
+FOR I := PENULTIMO STEP -1 UNTIL 1 DO
+    IF BOOLEAN (TAB[I]).PREPF THEN
+        BEGIN
+        TAMTOT := * - TAB[I].TMNHF - 1;
+        TAB[I] := * & (0) TMNHF;
+        IF TAMTOT LEQ TD THEN
+            GO TO EDIT;
+        END;
+
+%
+% EDICAO FINAL DO NOME.
+%
+EDIT:
+IF TAMTOT GTR TD THEN
+    BEGIN
+    REPLACE PD BY "*" FOR TD;
+    ZABREVA := -1;
+    END
+ELSE
+    BEGIN
+    REPLACE PD BY BRANCO FOR TD;
+    REPLACE PD:PD BY EA[TAB[0].INICF] FOR TAB[0].TMNHF;
+    FOR I := 1 STEP 1 UNTIL ULTIMO DO
+        IF TAB[I].TMNHF NEQ 0 THEN
+            REPLACE PD:PD+1 BY EA[TAB[I].INICF] FOR TAB[I].TMNHF;
+    ZABREVA := 0;
+    END;
+END   ZABREVA;
+INTEGER PROCEDURE ZABREVB (PPF, TFX, PPD, TDX, AAT);
+COMMENT
+         INTRINSIC NUMBER = 140,58 ;
+ $ SET OMIT
+
+            *** INTRINSECO DE ABREVIACAO DE NOMES ***
+                      REAL PROCEDURE ZABREV
+
+        ESTA PROCEDURE ABREVIA NOMES DE PESSOAS SEGUNDO O CRITERIO
+ESTABELECIDO PELA SDT NO "ALGORITMO PARA ABREVIACAO DE NOMES",
+TRANSCRITO ABAIXO. SOLICITADA A ELABORACAO PELA GD APG-AAS NUMERO
+APG 172/82 DE 17/08/82.
+
+PARAMETROS:
+1.  PF
+    POINTER BY VALUE (ENTRADA).
+    APONTA O CAMPO DO NOME ORIGINAL.
+    EM COBOL, ITEM DISPLAY.
+2.  TF
+    REAL BY VALUE (ENTRADA).
+    TAMANHO DO CAMPO DO NOME ORIGINAL.
+    EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO.
+3.  PD
+    POINTER BY VALUE (SAIDA).
+    APONTA O CAMPO DO NOME ABREVIADO.
+    EM COBOL, ITEM DISPLAY.
+4.  TD
+    REAL BY VALUE (ENTRADA).
+    TAMANHO DO CAMPO DO NOME ABREVIADO.
+    EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO.
+5.  AT
+    ARRAY REAL [0] (TRABALHO).
+    AREA DE TRABALHO PARA:
+    I.   A TABELA DE ELEMENTOS DO NOME.
+    II.  UMA COPIA DO NOME ORIGINAL.
+    O ARRAY PODE SER DECLARADO NO PROGRAMA COM TAMANHO 1 (OU SEJA,
+    ARRAY AT[0:0]), POIS O INTRINSECO FAZ UM RESIZE CASO O TAMANHO
+    NAO SEJA SUFICIENTE. O ARRAY PODE SER USADO NO PROGRAMA PARA
+    OUTRA FINALIDADE, MAS O INTRINSECO MODIFICA O SEU CONTEUDO.
+    EM COBOL, ITEM 01 COMP.
+
+VALOR DE RETORNO:
+     0: EXECUCAO NORMAL, NOME JA ABREVIADO NO CAMPO DE SAIDA.
+    -1: ERRO, O NOME NAO PODE SER ABREVIADO. O CAMPO DE SAIDA ESTA
+        PREENCHIDO COM ASTERISCOS "*".
+
+
+           *** ALGORITMO PARA ABREVIACAO DE NOMES ***
+       ANEXO A GD NUMERO APG 127/82 (APG-AAS), DE 17/08/82
+SAO OS SEGUINTES OS PASSOS A SEREM SEGUIDOS:
+1. SUPRIMIR TODOS OS BRANCOS SUPERFLUOS NO INICIO DO NOME E ENTRE
+   NOMES.
+2. SE O ULTIMO NOME FOR "JUNIOR", "NETO", "SOBRINHO" OU "FILHO",
+   SUBSTITUIR POR "JR", "NT", "SB" OU "FO", RESPECTIVAMENTE.
+3. ABREVIAR NOMES INTERMEDIARIOS, COM EXCECAO DAS PREPOSICOES "DE",
+   "DO", "DA", "DOS", "DAS", DO PENULTIMO PARA O SEGUNDO.
+   NAO CONSIDERAR OS NOMES SUBSTITUIDOS NO ITEM 2 COMO O ULTIMO
+   NOME.
+4. SUPRIMIR PREPOSICOES ("DE", "DA", "DO", "DAS", "DOS"), DA ULTIMA
+   PARA A PRIMEIRA.
+SE, AO FINAL DE CADA PASSO, O NOME COUBER NO CAMPO RECEPTOR, A ROTINA
+PODE PARAR. NOTE-SE QUE OS PASSOS 3 E 4 SAO ITERATIVOS, E A ROTINA
+PODE PARAR AO FINAL DE CADA ITERACAO.
+
+
+RESPONSAVEL PELA ELABORACAO DO INTRINSECO:
+    GILBERTO FERREIRA DA SILVA.
+    DATAPREV - SST.
+
+DATAS:
+    09/11/82: ORIGINAL.
+
+ $ POP OMIT
+ $ PAGE
+
+INTEGER TFX, TDX;
+EBCDIC ARRAY PPF, PPD,AAT[0];
+
+BEGIN
+INTEGER TF, TD;
+ARRAY AT[0]=AAT[*];
+POINTER PF,PD;
+REAL
+    I,              % SCRATCH PARA LOOPS, ETC.
+    CHARS,          % O COMPRIMENTO DE UM DADO ELEMENTO
+    RESTA,          % CARACTERES AINDA A EXAMINAR NA ORIGEM
+    INITAB,         % INDICE DO INICIO DA TABELA DE ELEMENTOS
+    TAMTOT,         % COMPRIMENTO TOTAL DO NOME
+    ULTIMO,         % INDICE DA DESCRICAO DO ULTIMO ELEMENTO
+    PENULTIMO,      % INDICE DA DESCR. DO PENULTIMO ELEMENTO
+    DIFERENCA;      % ENTRE OS TAMANHOS DE UM ELEMENTO
+BOOLEAN
+    PREPOSICAO;     % INDICA QUE O ELEMENTO E UMA PREPOSICAO
+LABEL
+    EDIT;           % PARA A EDICAO FINAL DO NOME
+POINTER
+    P;              % SCRATCH POINTER
+EBCDIC ARRAY
+    EA[0] = AT[*];  % PARA FACILITAR A MANIPULACAO
+DEFINE
+    BRANCO = " " #, % PARA SCAN, ETC.
+    TAB (X) = AT[INITAB+(X)] #, % TABELA DE ELEMENTOS DO NOME
+    INICF = [47:16] #, % POSICAO DE INICIO DO ELEMENTO
+    TMNHF = [31:16] #, % TAMANHO (COMPRIMENTO) DO ELEMENTO
+    PREPF = [0:1] #; % INDICA SE E OU NAO UMA PREPOSICAO
+
+TF:=TFX;
+TD:=TDX;
+%
+% INICIALIZACAO.
+% PREENCHIMENTO DA TABELA DE NOMES.
+%
+PF := PPF;
+PD := PPD;
+  IF SIZE (AT) LSS I := (INITAB:=(TF+5)DIV 6) + (TF+1)DIV 2 THEN
+     RESIZE (AAT, I*6);
+TAMTOT := 0;
+P := EA[0];
+RESTA := TF;
+REPLACE P BY PF FOR TF;
+SCAN P:P FOR CHARS:RESTA WHILE EQL BRANCO;
+IF CHARS EQL 0 THEN
+    BEGIN
+    TAB[0] := 0 & (TD) TMNHF;
+    ULTIMO := 0;
+    GO TO EDIT;
+    END;
+RESTA := CHARS;
+SCAN P:P FOR CHARS:RESTA WHILE NEQ BRANCO;
+TAMTOT := CHARS := RESTA - CHARS;
+TAB[0] := 0 & (TF - RESTA) INICF & (CHARS) TMNHF;
+RESTA := * - CHARS;
+ULTIMO := 0;
+WHILE RESTA GTR 0 DO
+    BEGIN
+    SCAN P:P FOR CHARS:RESTA WHILE EQL BRANCO;
+    IF CHARS EQL 0 THEN
+        RESTA := 0
+    ELSE
+        BEGIN
+        RESTA := CHARS;
+        SCAN P:P FOR CHARS:RESTA WHILE NEQ BRANCO;
+        TAMTOT := * + 1 + (CHARS := RESTA - CHARS);
+        TAB[ULTIMO:=*+1] := 0 & (TF-RESTA) INICF & (CHARS) TMNHF;
+        RESTA := * - CHARS;
+        END;
+    END;
+IF TAMTOT LEQ TD THEN
+    GO TO EDIT;
+
+%
+% FILHO -> FL, JUNIOR -> JR, NETO -> NT, SOBRINHO -> SB.
+%
+DIFERENCA := 0;
+P := EA[TAB[ULTIMO].INICF];
+CHARS := TAB[ULTIMO].TMNHF;
+IF CHARS EQL 4 THEN
+    IF P EQL "NETO" THEN
+        BEGIN
+        REPLACE P BY "NT";
+        DIFERENCA := 2;
+        END
+    ELSE
+ELSE
+IF CHARS EQL 5 THEN
+    IF P EQL "FILHO" THEN
+        BEGIN
+        REPLACE P BY "FL";
+        DIFERENCA := 3;
+        END
+    ELSE
+ELSE
+IF CHARS EQL 6 THEN
+    IF P EQL "JUNIOR" THEN
+        BEGIN
+        REPLACE P BY "JR";
+        DIFERENCA := 4;
+        END
+    ELSE
+ELSE
+IF CHARS EQL 8 THEN
+    IF P EQL "SOBRINHO" THEN
+        BEGIN
+        REPLACE P BY "SB";
+        DIFERENCA := 6;
+        END;
+IF DIFERENCA GTR 0 THEN
+    BEGIN
+    TAMTOT := * - DIFERENCA;
+    TAB[ULTIMO] := * & (2) TMNHF;
+    IF TAMTOT LEQ TD THEN
+        GO TO EDIT;
+    PENULTIMO := ULTIMO - 2;
+    END
+ELSE
+    PENULTIMO := ULTIMO - 1;
+
+%
+% ABREVIACAO DOS NOMES INTERMEDIARIOS.
+% IDENTIFICACAO DAS PREPOSICOES E ELIMINACAO DAS MESMAS
+%
+FOR I := PENULTIMO STEP -1 UNTIL 1 DO
+    BEGIN
+    P := EA[TAB[I].INICF];
+    CHARS := TAB[I].TMNHF;
+    PREPOSICAO := FALSE;
+    IF CHARS EQL 2 THEN
+        IF P EQL "DA" OR P EQL "DE" OR P EQL "DO" THEN
+             PREPOSICAO := TRUE
+        ELSE
+    ELSE
+    IF CHARS EQL 3 THEN
+        IF P EQL "DAS" OR P EQL "DOS" THEN
+            PREPOSICAO := TRUE;
+    IF PREPOSICAO THEN
+       BEGIN
+         TAMTOT:= * - TAB[I].TMNHF - 1;
+         BOOLEAN (TAB[I]) := * & (TRUE) PREPF;
+         TAB[I]:= * & (0) TMNHF;
+       END
+    ELSE
+        BEGIN
+        TAB[I] := * & (1) TMNHF;
+        TAMTOT := * - (CHARS - 1);
+        IF TAMTOT LEQ TD THEN
+            GO TO EDIT;
+        END;
+    END;
+
+%
+% EDICAO FINAL DO NOME.
+%
+EDIT:
+IF TAMTOT GTR TD THEN
+    BEGIN
+    REPLACE PD BY "*" FOR TD;
+    ZABREVB := -1;
+    END
+ELSE
+    BEGIN
+    REPLACE PD BY BRANCO FOR TD;
+    REPLACE PD:PD BY EA[TAB[0].INICF] FOR TAB[0].TMNHF;
+    FOR I := 1 STEP 1 UNTIL ULTIMO DO
+        IF TAB[I].TMNHF NEQ 0 THEN
+            REPLACE PD:PD+1 BY EA[TAB[I].INICF] FOR TAB[I].TMNHF;
+    ZABREVB := 0;
+    END;
+END   ZABREVB;
+$PAGE
+REAL    PROCEDURE ZATIVO (NOMEPROG);
+ARRAY NOMEPROG [*];
+%-----------------------------------------------------------------------
+BEGIN
+
+ DEFINE
+    MIXNO              = 1 #
+   ,COMPNAMESIZE       = 7 #
+   ,TASKNAME           = 9 #
+   ,COMPEENAME         = (7+SSITEM(COMPNAMESIZE)+1) #
+   ,SSITEM(X)          = A[MIXBASE+X] #
+   ,P = POINTER #
+   ,MIXBASE = BASE #
+   ;
+ BOOLEAN DONE;
+ REAL    L % NAME LENGTH (IN STD FORMAT)
+        ,BASE % TASK INDEX INTO 'A'
+        ,STK; % STKNO (FOR CONTINUATION REQUESTS)
+ EBCDIC ARRAY NCR,PNAME[0:255];
+ ARRAY A[0:1000];
+
+REPLACE NCR BY NOMEPROG UNTIL = 4"00",".";
+DISPLAYTOSTANDARD(NCR, PNAME);
+L:=REAL(PNAME,1);
+DO  %
+        IF NOT SYSTEMSTATUS(A, 9, STK) THEN % A ALL
+                BEGIN
+                BASE:=2;
+                WHILE BASE LSS A[0] AND NOT DONE DO
+                    IF NOT DONE:=SSITEM(COMPNAMESIZE) EQL 1 AND
+                           (SSITEM(TASKNAME)).[47:8] EQL L AND
+                           P(SSITEM(TASKNAME)) EQL PNAME FOR L THEN
+                        BASE:=A[BASE:=A[BASE]+BASE]+BASE;
+                END OF MIX SEARCH
+UNTIL DONE OR STK:=A[1] EQL 0;
+IF DONE THEN
+        ZATIVO:= 1;
+END ZATIVO;
+$ PAGE
+INTEGER PROCEDURE ZCALCDC(PP,QX); EBCDIC ARRAY PP[0]; INTEGER QX;
+%:             -------                                                 %
+%% Z C A L C D C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : CALCULAR DIGITO DE CONTROLE SEGUNDO NOTA DISTRIBUIDA   %
+%:              PELA "SDT" INTITULADA "ROTINA PADRONIZADA PARA CALCULO %
+%:                                     DO DIGITO DE CONTROLE".         %
+%:                                                                     %
+%: PARAMETROS :                                                        %
+%:          P - POINTER DE INICIO DO CAMPO SUBMETIDO AO CALCULO.       %
+%:               (EM COBOL, ITEM ELEMENTAR SEM SINAL, COMP-2, DISPLAY-1%
+%:                OU DISPLAY).                                         %
+%:                                                                     %
+%:          Q - COMPRIMENTO DO CAMPO.                                  %
+%:               (EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO).   %
+%:                                                                     %
+%: RESULTADO :  O VALOR DO DIGITO DE CONTROLE E RETORNADO.             %
+%:              O RETORNO DE UM VALOR NEGATIVO SIGNIFICA ANORMALIDADE: %
+%:               (-1) - PRESENCA DE CARATER NAO NUMERICO NO CAMPO.     %
+%:                                                                     %
+%: OBSERVACOES:                                                        %
+%:          1)  O PARAMETRO ESPECIFICADOR DE COMPRIMENTO DO CAMPO      %
+%:              NAO E SUBMETIDO A NENHUM TESTE. UM VALOR ERRADO PODE   %
+%:              TER CONSEQUENCIAS IMPREVISIVEIS.                       %
+%:                                                                     %
+%:          2)  EXEMPLO-COBOL:  COMPUTE TALLY = (MATRIC , 7).          %
+$ PAGE
+BEGIN
+   VALUE ARRAY TV(4"FFC00000",0,0,0,0,0,0,0 , 0,0,0,0,0,0,0,4"FFC0");
+   REAL  K,L,M;
+   POINTER P;
+   INTEGER Q;
+   P:=PP;
+   Q:=QX;
+%
+   SCAN P FOR K:Q WHILE IN TV [SIZE(P) & 0 [2:3]];
+   IF K NEQ 0 THEN ZCALCDC:=-1
+   ELSE
+     BEGIN
+       L:=Q MOD 8 + 2;
+       M:=0;
+  THRU Q DO M := * + INTEGER(P:P,1) * (L:=*-(IF L=2 THEN -7 ELSE 1));
+       ZCALCDC:=IF (K:=11-M MOD 11) > 9 THEN 0 ELSE K;
+     END;
+ END OF ZCALCDC ;
+%
+PROCEDURE ZCALCDCBB(PP,QX,V ); EBCDIC ARRAY PP[0]; INTEGER QX;
+                               EBCDIC ARRAY V [0];
+%:             -------                                                 %
+%% Z C A L C D C B B %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : CALCULAR DIGITO DE CONTROLE SEGUNDO NOTA DISTRIBUIDA   %
+%:              PELA "SDT" INTITULADA "ROTINA PADRONIZADA PARA CALCULO %
+%:              DO DIGITO DE CONTROLE". A LIBRARY ZCALCDC FOI ADAPTADA %
+%:              PARA ATENDER AS NECESSIDADES DO BANCO DO BRASIL, REFE- %
+%:              RENTE A MANEIRA DE REPRESENTACAO DO DIGITO DE CONTROLE %
+%:              = 10. ISTO E:                                          %
+%:                    ZCALCDC   - DIGITO 10 ----> REPRESENTACAO = 0    %
+%:                    ZCALCDCBB - DIGITO 10 ----> REPRESENTACAO = X    %
+%:                                                                     %
+%: PARAMETROS :                                                        %
+%:             CAMPO  - CAMPO QUE SERA SUBMETIDO AO CALCULO.           %
+%:                     (EM COBOL,ITEM ELEMENTAR ALFANUMERICO).         %
+%:                                                                     %
+%:             NUMERO - COMPRIMENTO DO CAMPO.                          %
+%:                     (EM COBOL,ITEM ELEMENTAR BINARY).               %
+%:                                                                     %
+%:             DIGITO - VALOR DO DIGITO DE CONTROLE E RETORNADO.       %
+%:                     (EM COBOL,ITEM ELEMENTAR ALFANUMERICO).         %
+%:                      O RETORNO DA LETRA "E" INDICA ANORMALIDADE:    %
+%:                EX: - PRESENCA DE CARATER NAO NUMERICO NO CAMPO.     %
+%:                                                                     %
+%: OBSERVACOES:                                                        %
+%:          1)  O PARAMETRO ESPECIFICADOR DE COMPRIMENTO DO CAMPO      %
+%:              NAO E SUBMETIDO A NENHUM TESTE. UM VALOR ERRADO PODE   %
+%:              TER CONSEQUENCIAS IMPREVISIVEIS.                       %
+%:                                                                     %
+ %:          2)  EXEMPLO-COBOL:  CALL "ZCALCDCBB IN DTP/L1"
+%:                                    USING CAMPO NUMERO DIGITO.       %
+$ PAGE
+BEGIN
+   VALUE ARRAY TV(4"FFC00000",0,0,0,0,0,0,0 , 0,0,0,0,0,0,0,4"FFC0");
+ EBCDIC VALUE ARRAY NUM ("0123456789X0E");
+   REAL  K,L,M;
+   POINTER P;
+   INTEGER Q,CALC;
+   P:=PP;
+   Q:=QX;
+%
+   SCAN P FOR K:Q WHILE IN TV [SIZE(P) & 0 [2:3]];
+   IF K NEQ 0 THEN K:= 12
+   ELSE
+     BEGIN
+       L:=Q MOD 8 + 2;
+       M:=0;
+  THRU Q DO M := * + INTEGER(P:P,1) * (L:=*-(IF L=2 THEN -7 ELSE 1));
+       CALC:=IF (K:=11-M MOD 11) > 9 THEN 0 ELSE K;
+     END;
+
+    REPLACE V BY NUM[K] FOR 1;
+END OF ZCALCDCBB;
+
+$PAGE
+INTEGER PROCEDURE ZCEI(MATRICULA);
+%% Z C E I %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+% FINALIDADDE : CONFERIR MATRICULAS CEI                                %
+%                                                                      %
+% PARAMETROS  : CEI - CAMPO SUBMETIDO AO TESTE COM 12 POS.             %
+%                     EM COBOL/COBOBL74, USAGE DISPLAY "77" OU "01".   %
+%                                                                      %
+% RESP:         1   - O DIGITO ESTA CERTO.                             %
+%               0   - O DIGITO ESTA ERRADO.                            %
+%              -1   - O ESTADO (POS 1 E 2) E < QUE 1 OU > 29.          %
+%              -2   - A ATIVIDADE E DIF. DE 0, 6, 7, 8, 9.             %
+%                                                                      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+EBCDIC ARRAY MATRICULA [0];
+BEGIN
+INTEGER I
+       ,SOMA
+       ;
+LABEL END_OF_ZCEI;
+VALUE ARRAY PESOS (7,4,1,8,5,2,1,6,3,7,4);
+%
+IF I:= INTEGER(MATRICULA[0],2) < 01 OR
+   I > 98 THEN
+   BEGIN
+   ZCEI:= -1; % ESTADO ERRADO
+   GO END_OF_ZCEI;
+   END;
+IF I:= INTEGER(MATRICULA[10],1) NEQ 0 AND
+   I NEQ 6 AND
+   I NEQ 7 AND
+   I NEQ 8 AND
+   I NEQ 9 THEN
+   BEGIN
+   ZCEI:= -2; % ATIVIDADE ERRADA
+   GO END_OF_ZCEI;
+   END;
+%
+FOR I:= 0 STEP 1 UNTIL 10 DO
+  SOMA:= SOMA + (INTEGER(MATRICULA[I],1) *
+                 PESOS[I]);
+%
+SOMA := (10 - ((SOMA MOD 10 + (SOMA DIV 10 MOD 10))  MOD 10)) MOD 10;
+%
+ZCEI:= IF SOMA EQL (INTEGER(MATRICULA[11],1)) THEN 1 % DV CERTO
+       ELSE 0; % DV ERRADO
+END_OF_ZCEI:
+END OF ZCEI LIB;
+$ PAGE
+INTEGER PROCEDURE ZCGC(CGC);
+%% Z C G C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : CONFERIR DIGITOS DE CONTROLE DO CGC                    %
+%:                                                                     %
+%: PARAMETROS :  CGC - CAMPO SUBMETIDO AO TESTE.                       %
+%:                     EM COBOL, USAGE DISPLAY "77" OU "01".           %
+%:                                                                     %
+%:                                                                     %
+%: RESP:         1   - OS DIGITOS ESTAO CERTOS                         %
+%:               0   - OS DIGITOS ESTAO ERRADOS OU O CAMPO CONTEM      %
+%:                     ALGUM CARATER NAO NUMERICO                      %
+%:                                                                     %
+%: CHAMADA: CALL "ZCGC IN LIB/INTRINSECOS" USING CGC GIVING RESP.      %
+%:                                                                     %
+%: OBSERVACOES: E ASSUMIDO QUE O CAMPO TENHA 14 POSICOES,QUALQUER      %
+%               VALOR ERRADO PODE TER CONSEQUENCIAS IMPREVISIVEIS.     %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY CGC[0];
+BEGIN
+  POINTER PCGC;
+  DEFINE A = INTEGER(PCGC+12,1) #
+        ,B = INTEGER(PCGC+13,1) #;
+  POINTER PX;
+  REAL T;
+  VALUE ARRAY NUMERIC(4"FFC00000",0,0,0,0,0,0,0,0,0,0,0,0,0,0,4"FFC0");
+%---------------------------------------------------------------------
+$PAGE
+  REAL PROCEDURE DC(SZ);
+  VALUE SZ;
+  REAL SZ;
+  BEGIN
+    REAL S,P;
+    PX:=PCGC;
+    P:=SZ.[2:3] + 2;
+    THRU SZ DO S:=*+INTEGER(PX:PX,1)*(P:=*-(IF P=2 THEN -7 ELSE 1));
+    DC:=IF (S:=* MOD 11).[3:3]=0 THEN 0 ELSE (11-S);
+$PAGE
+  END OF DC PROCEDURE;
+%---------------------------------------------------------------------
+  PCGC:= CGC;
+  SCAN PCGC FOR T:14 WHILE IN NUMERIC[SIZE(PCGC) & 0 [2:3]];
+  ZCGC:= REAL((T=0) AND (A=DC(12)) AND (B=DC(13)));
+END OF ZCGC LIB;
+%
+$ PAGE
+REAL PROCEDURE ZCHECKSUM(A,ENDIX,ENDFX);
+%% Z C H E C K S U M %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE INTRINSECO TEM A FINALIDADE DE CHECAR PARIDADE  %
+%:EM ARRAY ROWS. ESTA PROCEDURE E DO TIPO REAL.            %
+%:                                                         %
+%:  PARAMETROS:                                            %
+%:                                                         %
+%:      AA    -  A DEFINICAO DESTE EM COBOL SERA EM NIVEL  %
+%:               01 COMP.                                  %
+%:               EX:                                       %
+%:                  77 RESULT      COMP-4.                 %
+%:                                                         %
+%:                  01 A USAGE COMP.                       %
+%:                    03 WORD-1    PIC  9(11).             %
+%:                    03 WORD-2    PIC  9(11).             %
+%:                    03 WORD-3    PIC  9(11).             %
+%:                    03 WORD-4    PIC  9(11).             %
+%:                                                         %
+%:       ENDI -  N.DA PALAVRA DO ARRAY(A), QUE INDICA O    %
+%:               LIMITE INICIAL DO CAMPO A SER CHECADO.    %
+%:                                                         %
+%:       ENDF -  N.DA PALAVRA DO ARRAY(A), QUE INDICA O    %
+%:               LIMITE FINAL DO CAMPO A SER CHECADO.      %
+%:  CHAMADA:     COBOL - COMPUTE RESULT= ZCHECKSUM(A,2,4). %
+%:                                                         %
+%:  RESULTADO:   RETORNA UM VALOR REAL RESULTANTE DA OPERA-%
+%:               CAO.                                      %
+%:  LINGUAGEM                                              %
+%:  PARA  USO:   COBOL.                                    %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+INTEGER ENDIX,ENDFX;
+ARRAY A[0];
+BEGIN
+  INTEGER ENDI, ENDF;
+  ENDI:=ENDIX;
+  ENDF:=ENDFX;
+  ZCHECKSUM:=CHECKSUM(A,ENDI-1,ENDF-1);
+  END OF ZCHECKSUM LIB;
+$PAGE
+PROCEDURE ZCOMPAC(DDEST,FFONT,ESPACOX,SEQ);
+%% Z C O M P A C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:        ESTE INTRINSECO COMPACTA CAMPOS ELIMINANDO REPETICOES DO     %
+%:   MESMO CARACTER.                                                   %
+%:   E USADA UMA MARCA (48"FA").  SOMENTE SAO COMPACTADAS REPETICOES   %
+%:   MAIORES QUE 3 CARACTERES A NAO SER QUE O CARACTER SEJA IGUAL A    %
+%:   MARCA (QUE E SEMPRE TRANSFORMADA).                                %
+%:                                                                     %
+%:   O REGISTRO RESULTANTE ESTA PREPARADO PARA USO COM ARQUIVOS        %
+%:   FILETYPE 2 E UNITS = CHARACTERS.                                  %
+%:   NA PRIMEIRA PALAVRA E COLOCADO EM BINARIO NO CAMPO [47:16]        %
+%:   O COMPRIMENTO DO CAMPO RESULTADO + 12 E NO CAMPO [31:32] O        %
+%:   NUMERO DE SEQUENCIA.                                              %
+%:   NA SEGUNDA PALAVRA E COLOCADO O CHECKSUM DO CAMPO ORIGINAL.       %
+%:                                                                     %
+%:   CAMPOS MAIORES QUE 255 POSICOES SAO SUBDIVIDIDOS EM VARIAS PARTES.%
+%:                                                                     %
+%:   PARAMETROS :                                                      %
+%:                                                                     %
+%:        DEST   - ARRAY REAL (COMP EM COBOL) NO QUAL VAI SER COLOCADO %
+%:                 O CAMPO COMPACTADO, A PARTIR DA TERCEIRA PALAVRA.   %
+%:                                                                     %
+%:        FONT   - ARRAY REAL (COMP EM COBOL) DO QUAL VAO SER RETIRA-  %
+%:                 DAS AS INFORMACOES.                                 %
+%:                                                                     %
+%:        ESPACO - NUMERO DE BYTES A SEREM COMPACTADOS,REAL (COMP-4 OU %
+%:                 COMP-1 EM COBOL).                                   %
+%:                                                                     %
+%:        SEQ    - VARIAVEL USADA PARA GUARDAR O NUMERO DE SEQUENCIA,  %
+%:                 DEVENDO SER INICIALIZADA PARA ZERO E NAO ALTERADA.  %
+%:                                                                     %
+%:   CHAMADA :                                                         %
+%:                                                                     %
+%:        COBOL - CALL ZCOMPAC USING REGD REGF TALLY VAR77.            %
+%:        ALGOL - ZCOMPAC(REGD,REGF,REALA,REALB);                      %
+%:                                                                     %
+%:   RESULTADO: NAO RETORNA NENHUM VALOR                               %
+%:                                                                     %
+%:                                                                     %
+%:                                                                     %
+%:   ASSUME:                                                           %
+%:                                                                     %
+%:        POR SEGURANCA DECLARE DEST NO MINIMO DO MESMO TAMANHO QUE    %
+%:        FONT. SE ESPACO NAO FOR MULTIPLO DE 6, COLOQUE UM PADRAO     %
+%:        CONHECIDO NOS BYTES QUE FALTAM PARA MULTIPLO, POIS PODERA    %
+%:        HAVER PROBLEMA COM O CHECKSUM NO INTRINSECO ZDECOMPAC        %
+%:                                                                     %
+%:   LINGUAGENS = ALGOL,COBOL.                                         %
+%:   PARA USO                                                          %
+%:                                                                     %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+INTEGER ESPACOX,SEQ;
+EBCDIC ARRAY FFONT,DDEST[0];
+BEGIN
+ARRAY FONT[0]=FFONT[*];
+ARRAY DEST[0]=DDEST[*];
+DEFINE MARCA = 48"FA" #;
+REAL CHAR,SOBRA,SUBESPACO,ANDOU,TAM;
+INTEGER ESPACO;
+POINTER F1,F2,D;
+ESPACO:=ESPACOX;
+D:=POINTER(DEST[2]);
+F1:=F2:=POINTER(FONT);
+DEST[1]:=CHECKSUM(FONT,0,((ESPACO-1)DIV 6)+1);
+DO BEGIN
+     CHAR:=REAL(F1,1);
+     SUBESPACO:=MIN(255,ESPACO);
+     SCAN F2:F1 FOR SOBRA:SUBESPACO WHILE = CHAR;
+     ANDOU:=SUBESPACO-SOBRA;
+     IF ANDOU < 4 AND F1 ^= MARCA FOR 1 THEN BEGIN
+          TAM:=*+ANDOU;
+          REPLACE D:D BY F1:F1 FOR ANDOU;
+          END ELSE BEGIN
+          REPLACE D:D BY MARCA,ANDOU.[7:48] FOR 1,F1 FOR 1;
+          TAM:=*+3;
+          F1:=F2;
+          END;
+     END UNTIL (ESPACO:=*-ANDOU) = 0;
+DEST[0].[47:16]:=TAM+12;
+SEQ:=*+1;
+DEST[0].[31:32]:=SEQ;
+END OF  ZCOMPAC LIB;
+$ PAGE
+%% Z C O M P I L A %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : COMPILAR FONTES ATRAVES DE PROGRAMAS APLICATIVOS       %
+%:                                                                     %
+%: PARAMETROS : FONTE - FONTE QUE SERA COMPILADO.                      %
+%:                      EM COBOL, USAGE DISPLAY "77" OU "01".          %
+%:                                                                     %
+%:              OBJETO - O OBJETO SERA GERADO COM ESTE NOME.           %
+%:                       EM COBOL, USAGE DISPLAY "77" OU "01".         %
+%:                                                                     %
+%:              TARGET - QUAL O EQUIPAMENTO O CODIGO TERA MAIS AFINIDA-%
+%:                       DE (SERA EXECUTADO).                          %
+%:                       EM COBOL, USAGE DISPLAY "77" OU "01".         %
+%:                                                                     %
+%:              ERRO   - CAMPO ONDE SERA RETORNADO O RESULTADO  DA     %
+%:                       OPERACAO.                                     %
+%:                       EM COBOL, USAGE DISPLAY "77" OU "01".         %
+%:                                                                     %
+%:                       0 - COMPILACAO OK                             %
+%:                       1 - ARQUIVO FONTE NAO RESIDENTE               %
+%:                       2 - ERRO NO FILEKIND                          %
+%:                       3 - ERRO DE COMPILACAO                        %
+%:                                                                     %
+%: CHAMADA: CALL "ZCOMPILA IN DTP/L1" USING   FONTE  OBJETO  TARG      %
+%:                                    GIVING  ERRO.                    %
+%:                                                                     %
+%: OBSERVACOES: 1 - OS PARAMETROS FONTE E OBJETO DEVEM SER SEGUIDOS DE %
+%:                  PONTO.                                             %
+%:              2 - A LIBRARY GERA UM ARQUIVO TIPO DATA CONTENDO OS    %
+%:                  ERROS DE COMPILACAO E/OU WARNINGS, CHAMADO         %
+%:                  ERRORFILE/"NOME DO FONTE".                         %
+%:              3 - TODOS OS BACKUPS SERAO REMOVIDOS PELA LIBRARY.     %
+%:                                                                     %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+INTEGER PROCEDURE ZCOMPILA (FONTE, OBJETO, TARG);
+ EBCDIC ARRAY               FONTE, OBJETO, TARG [0];
+BEGIN
+ FILE ARQ_FONTE (KIND=DISK,FILETYPE=7)
+     ,ARQMERGE (KIND=DISK,MAXRECSIZE=14,BLOCKSIZE=420)
+     ,ERRORFILE (KIND=DISK,MYUSE=IN)
+     ;
+
+ REAL FKIND, TAMF;
+ LABEL XIT;
+ EBCDIC ARRAY FAMILIA[0:83];
+
+ PROCEDURE COMP (S); ARRAY S [*]; EXTERNAL;
+ TASK T;
+ POINTER P, PT;
+ ARRAY NADA [0:255];
+
+ REPLACE ARQ_FONTE.TITLE BY FONTE;
+ IF NOT ARQ_FONTE.RESIDENT THEN
+  BEGIN
+   ZCOMPILA := 1;
+   GO TO XIT;
+  END;
+
+ ARQMERGE.MYUSE := VALUE (OUT);
+ ARQMERGE.OPEN  := TRUE;
+ REPLACE NADA BY "      $SET MERGE", " " FOR 68;
+ WRITE (ARQMERGE, 14, POINTER (NADA));
+ REPLACE NADA BY "      $TARGET = ", TARG UNTIL = 48"00";
+ WRITE (ARQMERGE, 14, POINTER (NADA));
+ CLOSE (ARQMERGE, LOCK);
+
+ ARQ_FONTE.OPEN := TRUE;
+ FKIND := ARQ_FONTE.FILEKIND;
+ ARQ_FONTE.OPEN := FALSE;
+ REPLACE P:P:=POINTER (NADA [0]) BY "*SYSTEM/";
+ CASE FKIND OF
+  BEGIN
+   64 : REPLACE P:P BY "ALGOL";
+   65 : REPLACE P:P BY "COBOL";
+   66 : REPLACE P:P BY "FORTRAN";
+   68 : REPLACE P:P BY "PL/I";
+   72 : REPLACE P:P BY "DCALGOL";
+   73 : REPLACE P:P BY "BASIC";
+   79 : REPLACE P:P BY "NEWP";
+   83 : REPLACE P:P BY "FORTRAN77";
+   84 : REPLACE P:P BY "COBOL77";
+   86 : REPLACE P:P BY "COBOL74";
+   94 : REPLACE P:P BY "BINDER";
+   95 : REPLACE P:P BY "DASDL";
+   96 : REPLACE P:P BY "DMALGOL";
+ ELSE : BEGIN ZCOMPILA := 2; GO TO XIT; END;
+  END;
+ REPLACE P BY " ON SYS.";
+ REPLACE T.NAME BY NADA;
+
+ REPLACE FAMILIA BY MYSELF.FAMILY;
+ SCAN PT:FAMILIA  UNTIL = " ";
+ REPLACE FAMILIA BY PT+3  FOR TAMF:17 UNTIL = " ";
+ TAMF:=17-TAMF;
+
+ REPLACE NADA BY
+         "FILE SOURCE(KIND=DISK,",
+                   "TITLE=ARQMERGE ON ", FAMILIA FOR TAMF,  ");",
+         "FILE CARD (KIND=DISK,",
+                    "TITLE=", FONTE UNTIL = ".", ");",
+         "FILE CODE (KIND=DISK,",
+                    "TITLE=", OBJETO UNTIL = ".",
+                    ",SECURITYTYPE=PRIVATE",
+                    ",SECURITYUSE=IO);",
+         "FILE ERRORFILE (KIND=DISK,",
+                    "TITLE=ERRORFILE/", FONTE UNTIL = ".",",MYUSE=IN);"
+                    48"00";
+ REPLACE T.FILECARDS BY NADA;
+ REPLACE NADA BY 4"00" FOR 256;
+ REPLACE NADA BY "OBJ.";
+ REPLACE T.BDNAME BY NADA;
+
+ T.COMPILETYPE := 3;
+ T.OPTION      := 0 & 1[4:1] & 1[5:1] & 1[6:1] & 1[47:1];
+
+ REPLACE NADA BY 4"00" FOR 256;
+ NADA [0] := 0 & 1[47:1];
+ NADA [8] := 2;
+
+ CALL COMP (NADA) [T];
+
+ REPLACE NADA BY "OBJ ON ", MYSELF.BACKUPFAMILY;
+ REMOVEFILE (NADA);
+
+ IF ERRORFILE.RESIDENT THEN
+    BEGIN
+      REPLACE P:P:=POINTER (NADA[0]) BY "ERRORFILE/";
+      REPLACE P:P BY FONTE UNTIL = ".";
+    END;
+
+ IF T.TASKVALUE NEQ 0 THEN
+  ZCOMPILA := 3;
+
+XIT:
+END;
+INTEGER PROCEDURE ZCOMPRIME(PPF,PPD,TLX);
+%% ZCOMPRIME %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                    %
+%             COMPACTAR TODOS OS ESPACOS COM MAIS DE UM BRANCO, PARA %
+%         SOMENTE UM BYTE.                                           %
+%                                                                    %
+%         PARARMETRO :                                               %
+%                                                                    %
+%             1.     :  01 DISPLAY, CAMPO A SER COMPACTADO.          %
+%                                                                    %
+%             2.     :  01 DISPLAY, CAMPO DE DESTINO.                %
+%                                                                    %
+%             3.     :  77 BINARY, CONTENDO O NUMERO DE BYTES A SER  %
+%                       COMPACTADA.                                  %
+%                                                                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+EBCDIC ARRAY PPF,PPD[0];
+INTEGER TLX;
+BEGIN
+POINTER PF,PD;
+REAL Q,X;
+INTEGER TL;
+PF:=PPF;
+PD:=PPD;
+TL:=TLX;
+SCAN PF FOR X:TLX UNTIL < 64;
+IF X NEQ 0 THEN
+   BEGIN
+   REPLACE PD BY PF FOR TLX;
+   ZCOMPRIME:= TLX;
+   END
+ELSE
+BEGIN
+WHILE TL>0 DO BEGIN
+   REPLACE PD:PD BY PF:PF FOR TL:(X:=TL) WHILE > 64;
+   ZCOMPRIME:=*+X-TL;
+   SCAN PF:PF FOR TL:(X:=TL) WHILE = " ";
+   IF TL>0 THEN
+      IF (Q:=X-TL) > 0 THEN
+         THRU ((Q+62) DIV 63) DO BEGIN
+            REPLACE PD:PD BY MIN(Q,63).[7:48] FOR 1;
+            Q:=*-63;
+            ZCOMPRIME:=*+1;
+            END
+      ELSE
+         REPLACE PD-(OFFSET(PD)) BY PF-(X:=OFFSET(PF))
+                         FOR ZCOMPRIME:=TL+X+(X:=0);
+   END;
+END;
+END ZCOMPRIME;
+$ PAGE
+INTEGER PROCEDURE ZCONCAT(WORDX, VLX, BITNOX, LENGTHX);
+$ PAGE
+
+  INTEGER WORDX, VLX, BITNOX, LENGTHX;
+BEGIN
+   INTEGER WORD, VL, BITNO, LENGTH;
+   WORD:=WORDX;
+   VL:=VLX;
+   BITNO:=BITNOX;
+   LENGTH:=LENGTHX;
+   ZCONCAT := WORD & VL [BITNO:LENGTH]; % THAT IS ALL
+END ZCONCAT;
+$PAGE
+INTEGER PROCEDURE ZCPF (CPF);
+%% Z C P F  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : CONFERIR DIGITOS DE CONTROLE DO CPF.                   %
+%:                                                                     %
+%: PARAMETROS :  CPF - CAMPO SUBMETIDO AO TESTE.                       %
+%:                     EM COBOL, USAGE DISPLAY "77" OU "01"            %
+%:                                                                     %
+%:                                                                     %
+%: RESP:          1  - OS DIGITOS ESTAO CERTOS                         %
+%:                0  - OS DIGITOS ESTAO ERRADOS OU O CAMPO CONTEM      %
+%:                     ALGUM CARATER NAO NUMERICO                      %
+%:                                                                     %
+%: CHAMADA: CALL "ZCPF IN LIB/INTRINSECOS" USING CPF GIVING RESP       %
+%:                                                                     %
+%: OBSERVACOES: E ASSUMIDO QUE O CAMPO TENHA 11 POSICOES,QUALQUER      %
+%               VALOR ERRADO PODE TER CONSEQUENCIAS IMPREVISIVEIS.     %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY CPF[0];
+BEGIN
+  POINTER PCPF;
+  DEFINE A = INTEGER(PCPF+7,1) #
+        ,U = INTEGER(PCPF+8,1) #
+        ,B = INTEGER(PCPF+9,1) #
+        ,C = INTEGER(PCPF+10,1)#;
+  POINTER PX;
+  REAL T;
+  VALUE ARRAY NUMERIC(4"FFC00000",0,0,0,0,0,0,0,0,0,0,0,0,0,0,4"FFC0");
+%---------------------------------------------------------------------
+  REAL PROCEDURE DC(SZ);
+  VALUE SZ;
+  REAL  SZ;
+  BEGIN
+    REAL S,P;
+    PX:=PCPF;
+    P:=SZ+2;
+    THRU SZ DO S:=*+INTEGER(PX:PX,1)*(P:=*-1);
+    DC:=IF (S:=* MOD 11).[3:3]=0 THEN 0 ELSE (11-S);
+  END OF DC PROCEDURE;
+%---------------------------------------------------------------------
+  PCPF:= CPF;
+  SCAN PCPF FOR T:11 WHILE IN NUMERIC[SIZE(PCPF) & 0 [2:3]];
+  ZCPF:=REAL((T=0) AND (B=DC(9)) AND (C=DC(10)));
+END OF ZCPF LIB;
+$ PAGE
+PROCEDURE ZCRUNCHPASSWORD (SENHA,TAMANHO,PASS);
+%% ZCRUNCHPASSWORD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                            %
+%: FINALIDADE:  CIFRAR SENHAS                                 %
+%:                                                            %
+%: PARAMETROS:  SENHA   - STRING A SER CIFRADA                %
+%:              TAMANHO - TAMANHO DA STRING EM CARACTERES     %
+%:              PASS    - SENHA CIFRADA                       %
+%:                                                            %
+%: CHAMADA   :  CALL "ZCRUNCHPASSWORD IN DTP/L1"              %
+%:                      USING SENHA,TAMANHO,PASS.             %
+%:                                                            %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     EBCDIC ARRAY
+          SENHA
+         ,PASS [0]
+          ;
+     INTEGER
+          TAMANHO
+          ;
+
+  BEGIN
+     REAL
+          M
+         ,N
+          ;
+     POINTER
+          P
+         ,PW
+          ;
+     DEFINE
+          I = CRUNCH [1]#
+         ,J = CRUNCH [2]#
+         ,K = CRUNCH [3]#
+          ;
+     ARRAY CRPSW[0:0]
+          ,CRUNCH[0:3]
+          ;
+
+     P:= POINTER (CRUNCH [1]);
+     I:= J:= K:= 0;
+     PW:= SENHA [0];
+     REPLACE P: P BY PW: PW FOR M: TAMANHO UNTIL < 8"[";
+     WHILE M ^= 0
+     DO   BEGIN
+          SCAN PW: PW FOR N: M WHILE < 8"[";
+          REPLACE P: P BY 48"B1B3B5B7B9BB" FOR M - N,
+               PW: PW FOR M: N UNTIL < 8"["
+          END;
+     IF   J IS 0
+     THEN J:= K:= I
+     ELSE IF   K IS 0
+          THEN K:= I;
+     CRPSW[0] := (FIRSTWORD (NORMALIZE
+                            ((J.[47: 20] & I [35: 16] + I.[47: 32])
+          MUX (K.[47: 4] & J [31: 28] + K.[43: 36] + TAMANHO)), M) &
+          M [47: 38: 26]);
+     REPLACE PASS BY POINTER (CRPSW) FOR 6;
+     END  OF CRUNCHPASSWORD;
+$ PAGE
+ PROCEDURE ZDATA(DATA);
+INTEGER DATA;
+%% Z D A T A %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                         %
+%:  FINALIDADE: DEVOLVER AO USUARIO A DATA DO DIA (DDMMAA) %
+%:              FORNECIDA PELO SISTEMA.                    %
+%:                                                         %
+%:  PARAMETRO:  DATA - CAMPO ONDE SERA RETORNADA A DATA DO %
+%:                     SISTEMA. EM COBOL, USAGE DISPLAY    %
+%:                     "77" OU "01"                        %
+%:                                                         %
+%:  CHAMADA: CALL "ZDATA IN DTP/L1"          USING DATA.   %
+%:                                                         %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+BEGIN
+ ARRAY D[0:0];
+ DEFINE  IT=INTEGER#,
+       P=POINTER(D)#;
+ D[0]:=TIME(15);
+ DATA:=IT(P+4,2)+IT(P+2,2)*10000+IT(P,2)*100;
+END OF ZDATA LIB;
+$ PAGE
+ PROCEDURE ZDATA4(DATA);
+INTEGER DATA;
+%% Z D A T A 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                         %
+%:  FINALIDADE: DEVOLVER AO USUARIO A DATA DO DIA FORNECI -%
+%:              DA PELO SISTEMA, APRESENTANDO O CAMPO ANO  %
+%:              COM 4 POSICOES.                            %
+%:                                                         %
+%:  PARAMETRO:  DATA - CAMPO ONDE SERA RETORNADA A DATA DO %
+%:                     SISTEMA. EM COBOL, USAGE DISPLAY    %
+%:                     "77" OU "01"                        %
+%:                                                         %
+%:  CHAMADA: CALL "ZDATA4  IN DTP/L1"  USING DATA.         %
+%:                                                         %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+BEGIN
+ REAL TIME7, ANO,MES,DIA;
+      TIME7:=TIME(7);
+      ANO:=TIME7.[47:12];
+      MES:=TIME7.[35:06];
+      DIA:=TIME7.[29:06];
+ DATA:=ANO + MES * 10000 + DIA * 1000000 ;
+
+END OF ZDATA4 LIB ;
+$ PAGE
+INTEGER PROCEDURE ZDATVL(DATA);
+%% Z D A T V L  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: VERIFICAR A VALIDADE DE UMA DATA (DDMMAA)  %
+%:                                                         %
+%:  PARAMETRO:                                             %
+%:          DATA   - CAMPO SUBMETIDO AO TESTE.             %
+%:                   EM COBOL, USAGE DISPLAY "77" OU "01"  %
+%:                                                         %
+%:  CHAMADA: CALL "ZDATA IN LIB/INTRINSECOS" USING DATA    %
+%:                                           GIVING RESP   %
+%:                                                         %
+%:  RESP:           1    -   DATA VALIDA.                  %
+%:                  0    -   DATA INVALIDA.                %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY DATA[0];
+BEGIN %
+POINTER P;
+DEFINE LIM(X) = DATES[X MOD 13]+ REAL(A MOD 4 = 0 AND M=2) #;
+REAL D, M, A, T; %
+VALUE ARRAY NUMERIC(4"FFC00000",0,0,0,0,0,0,0,0,0,0,0,0,0,0,4"FFC0");
+VALUE ARRAY DATES( %
+     0,31,28,31,30,31,30,31,31,30,31,30,31); %
+P:= DATA;
+SCAN P FOR T:6 WHILE IN NUMERIC[SIZE(P) & 0 [2:3]];
+IF T EQL 0 THEN %
+  BEGIN %
+  D := INTEGER(P,2); %
+  M := INTEGER(P+2,2); %
+  A := INTEGER(P+4,2); %
+  IF NOT (A = 0 OR M = 0 OR M > 12 OR D = 0 OR D > LIM(M)) THEN %
+      ZDATVL:= 1;
+  END; %
+END OF ZDATVL LIB;
+INTEGER PROCEDURE ZDATVL4(DATA);
+%: Z D A T V L 4%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: VERIFICAR A VALIDADE DE UMA DATA (DDMMAAAA)%
+%:                                                         %
+%:  PARAMETRO:                                             %
+%:          DATA   - CAMPO SUBMETIDO AO TESTE.             %
+%:                   EM COBOL, USAGE DISPLAY "77" OU "01"  %
+%:                                                         %
+%:  CHAMADA: CALL "ZDATAVL4 IN LIB/INTRINSECOS" USING DATA %
+%:                                           GIVING RESP   %
+%:                                                         %
+%:  RESP:           1    -   DATA VALIDA.                  %
+%:                  0    -   DATA INVALIDA.                %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  EBCDIC ARRAY DATA[0];
+BEGIN %
+POINTER P;
+DEFINE LIM(X) = DATES[X MOD 13]+ REAL(A MOD 4 = 0 AND M=2) #;
+REAL D, M, A, T; %
+VALUE ARRAY NUMERIC(4"FFC00000",0,0,0,0,0,0,0,0,0,0,0,0,0,0,4"FFC0");
+VALUE ARRAY DATES( %
+     0,31,28,31,30,31,30,31,31,30,31,30,31); %
+P:= DATA;
+SCAN P FOR T:8 WHILE IN NUMERIC[SIZE(P) & 0 [2:3]];
+IF T EQL 0 THEN %
+  BEGIN %
+  D := INTEGER(P,2); %
+  M := INTEGER(P+2,2); %
+  A := INTEGER(P+4,4); %
+  IF NOT (A = 0 OR M = 0 OR M > 12 OR D = 0 OR D > LIM(M)) THEN %
+      ZDATVL4:= 1;
+  END; %
+END OF ZDATVL4 LIB;
+$PAGE
+INTEGER PROCEDURE ZDECOMPAC(DDEST,FFONT,ESPACOX,SEQ);
+%% Z D E C O M P A C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:        ESTE INTRINSECO DESCOMPACTA CAMPOS COMPACTADOS PELO          %
+%:   INTRINSECO ZCOMPAC  .                                             %
+%:                                                                     %
+%:   E VERIFICADO O CHECKSUM E O NUMERO DE SEQUENCIA E POR ISSO        %
+%:   O USUARIO NAO DEVE ALTERAR A VARIAVEL FORNECIDA BY NAME.          %
+%:                                                                     %
+%:   PARAMETROS :                                                      %
+%:                                                                     %
+%:        DEST - ARRAY ONDE VAI SER COLOCADO O RESULTADO,DESCOMPACTADO %
+%:                                                                     %
+%:        FONT - ARRAY FONTE, PROVENIENTE DE COMPACTACAO PELO          %
+%:               INTRINSECO ZCOMPAC                                    %
+%:                                                                     %
+%:        ESPACO - NUMERO DE BYTES DO CAMPO ORIGINAL,ANTES DE SER      %
+%:               COMPACTADO, USADO   APENAS PARA CONFERIR O CHECKSUM   %
+%:                                                                     %
+%:        SEQ  - VARIAVEL DE TRABALHO ONDE VAI SER ACUMULADA A SEQ,    %
+%:               PARA CONFERENCIA COM A EXISTENCIA NO REGISTRO         %
+%:                                                                     %
+%:   CHAMADA :                                                         %
+%:                                                                     %
+%:        COBOL - IF ZDECOMPAC(DEST,FONT,ESP,SEQ) STOP "ERRO .....".   %
+%:         ALGOL - BOOLVAR := ZDECOMPAC(DEST,FONT,ESP,SEQ);            %
+%:                                                                     %
+%:   RESULTADO :                                                       %
+%:                                                                     %
+%:        RETORNA TRUE SE HOUVER ERRO NO CHECKSUM OU SEQUENCIA         %
+%:                                                                     %
+%:   LINGUAGENS = ALGOL,COBOL                                          %
+%:   PARA USO                                                          %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+INTEGER ESPACOX,SEQ;
+EBCDIC ARRAY DDEST,FFONT[0];
+BEGIN
+ARRAY DEST[0]=DDEST[*];
+ARRAY FONT[0]=FFONT[*];
+REAL TAM,SOBRA,ANDOU,REPEAT;
+INTEGER ESPACO;
+DEFINE MARCA = 48"FA" #;
+POINTER F,D;
+ESPACO:=ESPACOX;
+TAM:=FONT[0].[47:16]-12;
+D:=POINTER(DEST);
+F:=POINTER(FONT[2]);
+DO BEGIN
+     REPLACE D:D BY F:F FOR SOBRA:TAM WHILE NEQ MARCA;
+     ANDOU:=TAM-SOBRA;
+     IF SOBRA ^= 0 THEN BEGIN
+          REPEAT:=REAL(F+2,1)&REAL(F+2,1)[15:7:8];
+          REPEAT:=REPEAT&REPEAT[31:15:16]&REPEAT[47:15:16];
+          REPLACE D:D BY REPEAT FOR REAL(F+1,1);
+          ANDOU:=*+3;
+          F:=F+3;
+          END;
+     END UNTIL (TAM:=*-ANDOU) = 0;
+ ZDECOMPAC:=REAL((SEQ:=*+1 ^= FONT[0].[31:32]) OR
+           FONT[1] ISNT CHECKSUM(DEST,0,((ESPACO-1)DIV 6)+1));
+END OF ZDECOMPAC LIB;
+$PAGE
+INTEGER PROCEDURE ZDIADASEMANA(DDATA); %
+%% Z D I A D A S E M A N A %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: FORNECER O NUMERO DA SEMANA REFERENTE A    %
+%:              UMA DATA NO FORMATO (DDMMAA).              %
+%:              1  -    DOMINGO                            %
+%:              2  -    SEGUNDA                            %
+%:              3  -    TERCA                              %
+%:              4  -    QUARTA                             %
+%:              5  -    QUINTA                             %
+%:              6  -    SEXTA                              %
+%:              7  -    SABADO                             %
+%:                                                         %
+%:  PARAMETROS:                                            %
+%:                                                         %
+%:       DDATA    - DATA A SER CONVERTIDA.                 %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                         %
+%:       SEMANA   - CAMPO ONDE SERA DEVOLVIDO O NUMERO DO  %
+%:                  DIA DA SEMANA.                         %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                         %
+%:  CHAMADA: CALL "ZDIASEMANA IN DTP/L1"    USING  DDATA   %
+%:                                          GIVING SEMANA  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+EBCDIC ARRAY DDATA[0];
+BEGIN
+DEFINE
+       DIA = INTEGER(DDATA[0],2) #
+      ,MES = INTEGER(DDATA[2],2) #
+      ,ANO = INTEGER(DDATA[4],2) #
+      ;
+BOOLEAN BISSEXTO;
+VALUE ARRAY
+        TABELA(0,0,31,59,90,120,151,181,212,243,273,304,334);
+BISSEXTO:=ANO MOD 4 EQL 0 AND (MES GTR 2 OR (MES EQL 2 AND DIA GTR 29));
+IF ZDATVL(DDATA) = 1 THEN
+   ZDIADASEMANA:= (TABELA[MES] + DIA +
+                   REAL(BISSEXTO) +
+                   ANO + (ANO - 1) DIV 4) MOD 7 + 1
+ELSE ZDIADASEMANA:= 0;
+END OF ZDIADASEMANA;
+$PAGE
+INTEGER PROCEDURE ZDIADASEMANA4(DDATA);
+%% Z D I A D A S E M A N A 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: FORNECER O NUMERO DA SEMANA REFERENTE A    %
+%:              UMA DATA NO FORMATO (DDMMAAAA).            %
+%:              1  -    DOMINGO                            %
+%:              2  -    SEGUNDA                            %
+%:              3  -    TERCA                              %
+%:              4  -    QUARTA                             %
+%:              5  -    QUINTA                             %
+%:              6  -    SEXTA                              %
+%:              7  -    SABADO                             %
+%:                                                         %
+%:  PARAMETROS:                                            %
+%:                                                         %
+%:       DDATA    - DATA A SER CONVERTIDA.                 %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                         %
+%:       SEMANA   - CAMPO ONDE SERA DEVOLVIDO O NUMERO DO  %
+%:                  DIA DA SEMANA.                         %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                         %
+%:  CHAMADA: CALL "ZDIASEMANA4 IN DTP/L1"    USING  DDATA  %
+%:                                          GIVING SEMANA  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+EBCDIC ARRAY DDATA[0];
+BEGIN
+% LIBRARY L1 (TITLE="*DTP/L1 ON SYS.");
+% INTEGER PROCEDURE ZDATVL4(DATA);
+% EBCDIC ARRAY DATA[0];
+% LIBRARY L1;
+  REAL D,M,Y,T,DYS;
+  VALUE ARRAY DAYS1(0,31,59,90,120,151,181,212,243,273,304,334)
+             ,DAYS2(3"0101122344556000")
+             ;
+  DEFINE ACUM(X)=30*(X)+DAYS2[0].[47-(X)*3:3] #;
+  DYS:=INTEGER(DDATA[0],8);
+  D:=DYS DIV 1000000;
+  M:=(DYS DIV 10000 MOD 100)-1;
+  Y:=(DYS MOD 10000)-1;
+  IF (Y.[1:2] = 3) AND (M > 1) THEN T:=1;
+  IF ZDATVL4(DDATA) = 1 THEN
+    ZDIADASEMANA4:=((Y*365+DAYS1[M]+Y.[47:46]+D+T)- 1) MOD 7 + 1
+  ELSE
+    ZDIADASEMANA4:=0;
+  END OF ZDIADASEMANA4;
+$PAGE
+PROCEDURE ZDISPLAY(MSG,FECHA);
+EBCDIC ARRAY MSG[0];
+INTEGER FECHA;
+% TAM MAXIMO DO MSG = 107 BYTES
+% DD/MM/AAAAbHH:MM:SSbnnnnb<msg>
+BEGIN
+EBCDIC ARRAY DISP  [0:131];
+EBCDIC ARRAY DISPT [0:131];
+EBCDIC ARRAY PROG  [0:080];
+EBCDIC ARRAY MSGNEW[0:106];
+REAL TIME7;
+%
+REPLACE MSGNEW[0] BY MSG[0] FOR 107 UNTIL EQL 48"00";
+TIME7   := TIME(7);
+REPLACE PROG   BY MYSELF.NAME;
+REPLACE DISP   BY " " FOR 132;
+REPLACE DISPT  BY " " FOR 132;
+REPLACE DISP   BY TIME7.[29:06] FOR 2 DIGITS,"/"
+                 ,TIME7.[35:06] FOR 2 DIGITS,"/"
+                 ,TIME7.[47:12] FOR 4 DIGITS," "
+                 ,TIME7.[23:06] FOR 2 DIGITS,":"
+                 ,TIME7.[17:06] FOR 2 DIGITS,":"
+                 ,TIME7.[11:06] FOR 2 DIGITS," "
+                 ,MYSELF.MIXNUMBER FOR 4 DIGITS," "
+                 ,MSGNEW[0] FOR 107 UNTIL EQL 48"00";
+IF VALIDA = 0 THEN
+   BEGIN
+    REPLACE DISPT BY MYSELF.MIXNUMBER FOR 4 DIGITS, " ",
+                     PROG[0] FOR 50 UNTIL EQL 4"00";
+            WRITE(MYSELF.TASKFILE,//,DISPT);
+            VALIDA := 1;
+   END;
+IF WRITE(MYSELF.TASKFILE,//,DISP) THEN
+   BEGIN
+     CLOSE(MYSELF.TASKFILE);
+     WRITE(MYSELF.TASKFILE,//,DISP);
+   END;
+
+IF FECHA EQL 1 THEN
+   BEGIN
+     CLOSE(MYSELF.TASKFILE);
+     FECHA:=0;
+     VALIDA:=0;
+   END;
+END OF ZDISPLAY;
+$PAGE
+PROCEDURE ZDISPLAY2(MSG,MSG1,FECHA);
+EBCDIC ARRAY MSG[0];
+EBCDIC ARRAY MSG1[0];
+INTEGER FECHA;
+% TAM MAXIMO DO MSG  = 35 BYTES
+% TAM MAXIMO DO MSG1 = 15 BYTES
+% DD/MM/AAAAbHH:MM:SSbnnnnb<msg>
+BEGIN
+EBCDIC ARRAY DISP   [0:131];
+EBCDIC ARRAY DISPT  [0:131];
+EBCDIC ARRAY PROG   [0:080];
+EBCDIC ARRAY MSGNEW [0:034];
+EBCDIC ARRAY MSG1NEW[0:014];
+REAL   TIME7;
+%
+REPLACE MSGNEW[0]  BY MSG[0]  FOR 35 UNTIL EQL 48"00";
+REPLACE MSG1NEW[0] BY MSG1[0] FOR 15 UNTIL EQL 48"00";
+TIME7:= TIME(7);
+REPLACE PROG  BY MYSELF.NAME;
+REPLACE DISP  BY " " FOR 132;
+REPLACE DISPT BY " " FOR 132;
+REPLACE DISP  BY TIME7.[29:06] FOR 2 DIGITS,"/"
+                ,TIME7.[35:06] FOR 2 DIGITS,"/"
+                ,TIME7.[47:12] FOR 4 DIGITS," "
+                ,TIME7.[23:06] FOR 2 DIGITS,":"
+                ,TIME7.[17:06] FOR 2 DIGITS,":"
+                ,TIME7.[11:06] FOR 2 DIGITS," "
+                ,MYSELF.MIXNUMBER FOR 4 DIGITS," "
+                ,MSGNEW[0]  FOR 35 UNTIL EQL 48"00", " "
+                ,MSG1NEW[0] FOR 15 UNTIL EQL 48"00";
+IF VALIDA = 0 THEN
+   BEGIN
+    REPLACE DISPT BY MYSELF.MIXNUMBER FOR 4 DIGITS, " ",
+                     PROG[0] FOR 50 UNTIL EQL 4"00";
+            WRITE(MYSELF.TASKFILE,//,DISPT);
+            VALIDA := 1;
+   END;
+IF WRITE(MYSELF.TASKFILE,//,DISP) THEN
+   BEGIN
+     CLOSE(MYSELF.TASKFILE);
+     WRITE(MYSELF.TASKFILE,//,DISP);
+   END;
+
+IF FECHA EQL 1 THEN
+   BEGIN
+     CLOSE(MYSELF.TASKFILE);
+     FECHA:=0;
+     VALIDA:=0;
+   END;
+END OF ZDISPLAY2;
+$PAGE
+INTEGER PROCEDURE ZDMA(DSECX); %
+%% Z D M A %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER O NUMERO DE DIAS DO SECULO EM    %
+%:              DATA(DDMMAA).                              %
+%:                                                         %
+%:  PARAMETROS:                                            %
+%:                                                         %
+%:       DSEC     - NUMERO DE DIAS DO SECULO.              %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                         %
+%:        DATA    - CAMPO ONDE SERA DEVOLVIDO A DATA       %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                         %
+%:  CHAMADA: CALL "ZDMA IN LIB/INTRINSECOS" USING DSEC     %
+%:                                          GIVING DDDATA  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+ INTEGER DSECX;
+BEGIN %
+
+INTEGER DSEC;
+REAL D, M, A; %
+DEFINE ACUM (X) = 30 * (X) + DAYS[0].[47-(X)*3:3] # ; %
+VALUE ARRAY DAYS (3"0101122344556000"); %
+DSEC:=DSECX;
+
+IF NOT (DSEC LSS 1 OR DSEC GTR 36524) THEN %
+  BEGIN %
+  A := 4 * (DSEC DIV 1461) + DSEC MOD 1461 DIV 365; %
+  D := DSEC MOD 1461 MOD 365; %
+   IF D EQL 0 THEN D:= 365 + REAL(DSEC MOD 1461 EQL 0) %
+  ELSE A := * +1; %
+  D := * + REAL(A MOD 4 NEQ 0 AND D GTR 59); %
+  M := D DIV 30 + REAL(D GTR ACUM(D DIV 30)); %
+  D := * - (ACUM(M-1)); %
+ ZDMA := D*10000 + M*100 + A; %
+  END; %
+END OF ZDMA LIB;
+$ PAGE
+INTEGER PROCEDURE ZDMA4(DSECX); %
+%% Z D M A 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER O NUMERO DE DIAS DO SECULO EM     %
+%:              DATA(DDMMAAAA).A PARTIR DO SECULO XX        %
+%:                                                          %
+%:  PARAMETROS:                                             %
+%:                                                          %
+%:       DSEC     - NUMERO DE DIAS DO SECULO.               %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"     %
+%:                                                          %
+%:        DATA    - CAMPO ONDE SERA DEVOLVIDO A DATA        %
+%:                  EM COBOL, USAGE BINARY "77" OU "01"     %
+%:                                                          %
+%:  CHAMADA: CALL "ZDMA4 IN LIB/INTRINSECOS" USING DSEC     %
+%:                                          GIVING DDDATA   %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+ INTEGER DSECX;
+BEGIN %
+
+INTEGER DSEC;
+REAL D, M, A; %
+DEFINE ACUM (X) = 30 * (X) + DAYS[0].[47-(X)*3:3] # ; %
+VALUE ARRAY DAYS (3"0101122344556000"); %
+DSEC:=DSECX ;
+
+IF NOT (DSEC LSS 1) THEN
+  BEGIN %
+  DSEC:=DSEC + 693975;
+  A := 4 * (DSEC DIV 1461) + DSEC MOD 1461 DIV 365; %
+  D := DSEC MOD 1461 MOD 365; %
+   IF D EQL 0 THEN D:= 365 + REAL(DSEC MOD 1461 EQL 0) %
+  ELSE A := * +1; %
+  D := * + REAL(A MOD 4 NEQ 0 AND D GTR 59); %
+  M := D DIV 30 + REAL(D GTR ACUM(D DIV 30)); %
+  D := * - (ACUM(M-1)); %
+ ZDMA4 := D*1000000 + M*10000 + A; %
+  END; %
+END OF ZDMA4 LIB;
+$ PAGE
+PROCEDURE ZDSEC(DATA,SEC);
+%% Z D S E C  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER UMA DATA (DDMMAA) EM DIAS DESTE  %
+%:              SECULO.                                    %
+%:                                                         %
+%:  PARAMETRO:                                             %
+%:                                                         %
+%:          DATA  - CAMPO A SER CONVERTIDO.                %
+%:                  EM COBOL, USAGE DISPLAY "77" OU "01"   %
+%:                                                         %
+%:  CHAMADA: CALL "ZDSEC IN LIB/INTRINSECOS" USING DATA SEC%
+%:                                                         %
+%:                                                         %
+%:  OBSERVACAO: A DATA PASSADA COMO PARAMETRO NAO E TESTADA%
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY DATA[0];
+  INTEGER SEC;
+BEGIN %
+POINTER P;
+VALUE ARRAY DAYS(0,31,59,90,120,151,181,212,243,273,304,334); %
+REAL D, M, A, T; %
+P:= DATA;
+D:=INTEGER(P,2); %
+M:=INTEGER(P+2,2) - 1; %
+A:=INTEGER(P+4,2) - 1; %
+IF A MOD 4 EQL 3 AND M GTR 1 THEN %
+  T := 1; %
+ SEC := A*365 + DAYS[M] + A DIV 4 + D + T; %
+END OF ZDSEC LIB;
+%
+$ PAGE
+PROCEDURE ZDSEC4(DATA,SEC);
+%% Z D S E C 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER UMA DATA (DDMMAAAA) EM DIAS DO     %
+%:              SECULO A PARTIR DO SECULO XX.                %
+%:                                                           %
+%:  PARAMETRO:                                               %
+%:                                                           %
+%:          DATA  - CAMPO A SER CONVERTIDO.                  %
+%:                  EM COBOL, USAGE DISPLAY "77" OU "01"     %
+%:                                                           %
+%:  CHAMADA: CALL "ZDSEC4 IN LIB/INTRINSECOS" USING DATA SEC %
+%:                                                           %
+%:                                                           %
+%:  OBSERVACAO: A DATA PASSADA COMO PARAMETRO NAO E TESTADA  %
+%:                                                           %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY DATA[0];
+  INTEGER SEC;
+BEGIN %
+  REAL D,M,Y,T,DYS;
+  VALUE ARRAY DAYS1(0,31,59,90,120,151,181,212,243,273,304,334);
+  DEFINE ACUM(X)=30*(X)+DAYS2[0].[47-(X)*3:3] #;
+  DYS:=INTEGER(DATA[0],8);
+  D:=DYS DIV 1000000;
+  M:=(DYS DIV 10000 MOD 100)-1;
+  Y:=(DYS MOD 10000)-1;
+  IF (Y.[1:2] = 3) AND (M > 1) THEN T:=1;
+  SEC:= (Y*365+DAYS1[M]+Y.[47:46]+D+T) - 693975 ;
+END OF ZDSEC4 LIB;
+$ PAGE
+PROCEDURE ZEDITA(A_EDITAR,EDITADO,PICTURE,TAM_A_EDITAR
+                ,TAM_PICTURE,ANYTHING_YOU_WANT,AJUSTE,DUMMY);
+% ZEDITA %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                      %
+%   OBJETIVO: Editar um campo  numerico de acordo com uma determinada  %
+%   --------- picture e com algumas especificacoes tais como tamanho,  %
+%             ajuste do campo, e um caracter  a  ser usado em substi-  %
+%             tuicao  a  espacos em branco e zeros nao significativos  %
+%             (BLANK WHEN ZERO).                                       %
+%             Idealizada para evitar a repeticao do mesmo caracter no  %
+%             caso de "BLANK WHEN ZERO" e com isso evitar o  desgaste  %
+%             mecanico da cadeia ou tambor da impressora.              %
+%                                                                      %
+%   -----------------------------------------------------------------  %
+%                                                                      %
+%   PARAMETROS:                                                        %
+%   -----------                                                        %
+%   A_EDITAR = Campo a ser editado (INTEGER,COMP,COMP-1 SINAL OU NAO)  %
+%   EDITADO  = Campo ja editado    (EBCDIC ARRAY,DISPLAY)              %
+%   PICTURE  = picture usada       (LIKE COBOL)                        %
+%   TAM_A_EDITAR = Tamanho do campo a ser editado                      %
+%   TAM_PICTURE  = Tamanho do picture                                  %
+%   ANYTHING_YOU_WANT = Caracter a ser usado no caso  de  BLANK WHEN   %
+%                       ZERO ou  para  alinhamento do campo  editado   %
+%   AJUSTE = Esquerda, Direita, Centro ou Normal                       %
+%   DUMMY  = Area de trabalho (EBCDIC ARRAY, DISPLAY  do  tamanho do   %
+%                             CAMPO EDITADO)                           %
+%                                                                      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ EBCDIC ARRAY EDITADO,PICTURE,ANYTHING_YOU_WANT,AJUSTE,DUMMY[0];
+ INTEGER TAM_A_EDITAR,TAM_PICTURE;
+ REAL    A_EDITAR;
+ BEGIN
+ LABEL XIT
+      ,XIT1
+      ;
+ STRING SINAL_A_EDITAR
+       ,SINAL_EDITADO
+       ;
+ POINTER PA
+        ,PB
+        ,PAUX
+        ;
+ REAL AUX
+     ,CAMPO
+     ,MASC
+     ;
+ BOOLEAN CHAR_INSERIDO
+        ;
+ TRUTHSET YOU_WANT_BUT_YOU_CANT (" 0123456789");
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ IF PAUX:=ANYTHING_YOU_WANT IN YOU_WANT_BUT_YOU_CANT THEN
+    REPLACE ANYTHING_YOU_WANT BY "*";
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ PA:= DUMMY[0];
+ PB:= EDITADO[0];
+ REPLACE PA BY A_EDITAR FOR TAM_A_EDITAR DIGITS;
+ IF A_EDITAR > 0 THEN
+    SINAL_A_EDITAR:= "+"
+ ELSE
+    IF A_EDITAR < 0 THEN
+       SINAL_A_EDITAR:= "-"
+    ELSE
+      BEGIN
+        THRU TAM_PICTURE DO
+             REPLACE PB:PB BY ANYTHING_YOU_WANT FOR 1;
+        GO XIT;
+      END;
+%%%%%%%%%%%%%%%%%
+ SINAL_EDITADO:= " ";
+ REPLACE EDITADO BY PICTURE FOR TAM_PICTURE;
+%%%%%%%%%%%%%%%%%
+ IF PB = "-" OR PB = "+" THEN
+   BEGIN
+     SINAL_EDITADO:= "E";
+     PB:= * + 1;
+     TAM_PICTURE:= * - 1;
+   END
+ ELSE
+   IF PB + (TAM_PICTURE - 1) = "-" OR
+      PB + (TAM_PICTURE - 1) = "+"     THEN
+      BEGIN
+        SINAL_EDITADO:= "D";
+        TAM_PICTURE:= * - 1;
+      END;
+%%%%%%%%%%%%%%%%
+ MASC:= TAM_PICTURE - 1;
+ CAMPO:= TAM_A_EDITAR - 1;
+ SCAN PA FOR AUX:TAM_A_EDITAR WHILE = "0";
+ AUX:= TAM_A_EDITAR - AUX;
+ WHILE MASC NEQ -1 AND CAMPO NEQ AUX - 1 DO
+ IF PB + MASC = "Z" OR
+    PB + MASC = "*" OR
+    PB + MASC = "9"     THEN
+    BEGIN
+     REPLACE PB + MASC BY PA + CAMPO FOR 1;
+     MASC:= * - 1;
+     CAMPO:= * - 1;
+    END
+ ELSE
+    MASC:= * - 1;
+%%%%%%%%%%%%%%%%%%%%%
+ CAMPO:= 0;
+ WHILE CAMPO <= MASC AND PB + CAMPO NEQ "9" DO
+ BEGIN
+   IF PB + CAMPO = "Z" THEN
+      BEGIN
+      IF CHAR_INSERIDO AND AJUSTE NEQ "N" THEN
+         REPLACE PB + CAMPO BY ANYTHING_YOU_WANT FOR 1
+      ELSE
+         REPLACE PB + CAMPO BY " ";
+      END
+   ELSE
+      IF PB + CAMPO = "." OR
+         PB + CAMPO = "," OR
+         PB + CAMPO = "/"    THEN
+         BEGIN
+         IF CAMPO = 0 THEN
+            REPLACE PB BY " "
+         ELSE
+            REPLACE PB + CAMPO BY PB + (CAMPO - 1) FOR 1;
+         END
+      ELSE
+         CHAR_INSERIDO:= TRUE;
+   CAMPO:= * + 1;
+ END;
+%%%%%%%%%%%%%%%%%%%%%
+ WHILE CAMPO <= MASC DO
+ BEGIN
+   IF PB + CAMPO = "9" THEN
+      REPLACE PB + CAMPO BY "0";
+   CAMPO:= * + 1;
+ END;
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+ IF SINAL_EDITADO = "E" THEN
+    BEGIN
+      PB:= * - 1;
+      TAM_PICTURE:= * + 1;
+    END
+ ELSE
+    IF SINAL_EDITADO = "D" THEN
+       TAM_PICTURE:= * + 1
+    ELSE
+       GO XIT;
+%%%%%%%%%%%%%%%%%%%%%%%%%
+ IF PB = "+" THEN
+    BEGIN
+      REPLACE PB BY " ";
+      SCAN PB FOR AUX:TAM_PICTURE WHILE = " ";
+      REPLACE PB + (TAM_PICTURE - AUX - 1) BY SINAL_A_EDITAR;
+    END
+ ELSE
+    IF PB + (TAM_PICTURE - 1) = "+" THEN
+       REPLACE PB + (TAM_PICTURE - 1) BY SINAL_A_EDITAR
+    ELSE
+       IF PB = "-" THEN
+          BEGIN
+            REPLACE PB BY " ";
+            IF SINAL_A_EDITAR = "-" THEN
+               BEGIN
+                 SCAN PB FOR AUX:TAM_PICTURE WHILE = " ";
+                 REPLACE PB + (TAM_PICTURE - AUX - 1) BY SINAL_A_EDITAR;
+               END;
+          END
+       ELSE
+          IF PB + (TAM_PICTURE - 1) = "-" THEN
+             IF SINAL_A_EDITAR NEQ "-" THEN
+                REPLACE PB + (TAM_PICTURE - 1) BY " ";
+%%%%%%%%%%%%%%%%
+ XIT:
+ IF AJUSTE NEQ "N" THEN
+   BEGIN
+     PA:= DUMMY[0];
+     SCAN PB:EDITADO[0] FOR AUX:TAM_PICTURE WHILE = " ";
+     IF AUX = TAM_PICTURE THEN
+        GO TO XIT1;
+     IF AJUSTE = "E" THEN
+        BEGIN
+          REPLACE PA:PA BY PB FOR AUX;
+          THRU TAM_PICTURE - AUX DO
+               REPLACE PA:PA BY ANYTHING_YOU_WANT FOR 1;
+        END
+     ELSE
+        IF AJUSTE = "D" THEN
+           BEGIN
+             THRU TAM_PICTURE - AUX DO
+                  REPLACE PA:PA BY ANYTHING_YOU_WANT FOR 1;
+             REPLACE PA:PA BY PB FOR AUX;
+           END
+        ELSE
+           BEGIN
+             THRU (TAM_PICTURE - AUX) DIV 2 DO
+                  REPLACE PA:PA BY ANYTHING_YOU_WANT FOR 1;
+             REPLACE PA:PA BY PB FOR AUX;
+             THRU ((TAM_PICTURE - AUX) DIV 2) +
+                  ((TAM_PICTURE - AUX) MOD 2)   DO
+                  REPLACE PA:PA BY ANYTHING_YOU_WANT FOR 1;
+          END;
+     REPLACE EDITADO[0] BY DUMMY[0] FOR TAM_PICTURE;
+  END;
+ XIT1:
+ END OF ZEDITA;
+$ PAGE
+INTEGER PROCEDURE ZEXPANDE(PPF,DDESTINO,KX);
+%% ZEXPANDE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                    %
+%         DESCOMPACTAR AREAS COMPACTADAS PELA LIB. ZCOMPRIME.        %
+%                                                                    %
+%         PARAMETROS :                                               %
+%                                                                    %
+%             1.     :  01 DISPLAY, A SER COMPACTADO.                %
+%                                                                    %
+%             2.     :  01 DISPLAY, DESTINO                          %
+%                                                                    %
+%             3.     :  77 BINARY, CONTENDO O NUMERO DE BYTES DA AREA%
+%                       COMPACTADA.                                  %
+%                                                                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+EBCDIC ARRAY PPF,DDESTINO[0];
+INTEGER KX;
+
+BEGIN
+ARRAY DESTINO[0]=DDESTINO[*];
+POINTER PF;
+REAL X,PM;
+INTEGER K;
+PF:=PPF;
+K:=KX;
+WHILE K>0 DO BEGIN
+   X:=K;
+   REPLACE POINTER(DESTINO[PM DIV 6])+(PM MOD 6) BY
+             PF:PF FOR K:K UNTIL<64;
+   PM:=*+X-K;
+   IF K > 0 THEN
+          PM := * + REAL(PF,1);
+   PF:=*+1;
+   K:=*-1;
+   END;
+ZEXPANDE:=PM;
+END ZEXPANDE;
+$ PAGE
+INTEGER PROCEDURE ZEXTF (WORDX, BITNOX, LENGTHX);
+% ZEXTF %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                    %
+%       EXTRAIR DETERMINADO CAMPO DE BITS DE UMA PALAVRA.            %
+%                                                                    %
+%       PARAMETROS :                                                 %
+%          1.      : PALAVRA QUE SE QUER EXTRAIR O CAMPO.            %
+%                    77 BINARY.                                      %
+%                                                                    %
+%          2.      : NUMERO DO BIT INICIAL.                          %
+%                    77 BINARY.                                      %
+%                                                                    %
+%          3.      : QUANTIDADE DE BITS.                             %
+%                    77 BINARY.                                      %
+%                                                                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  INTEGER  WORDX, BITNOX, LENGTHX;
+BEGIN
+  INTEGER WORD, BITNO, LENGTH;
+  WORD:=WORDX;
+  BITNO:=BITNOX;
+  LENGTH:=LENGTHX;
+  ZEXTF := WORD.[BITNO:LENGTH]; % THAT IS ALL FOLKS!
+END ZEXTF;
+$ PAGE
+PROCEDURE ZFA(F1);
+FILE F1;
+BEGIN
+LOCK(F1);
+END ZFA;
+$PAGE
+INTEGER PROCEDURE ZFH(CODE,E1,E2);
+COMMENT
+    INTRINSIC NUMBER = 140,NN;
+INTEGER CODE;          % WHAT TO DO
+EBCDIC ARRAY E1,E2[0]; % TITLES:FILES TO CHANGE OR REMOVE
+BEGIN
+  DEFINE
+          REMOVEV   =  2 #
+         ,CHANGEV   =  3 #
+         ,UNKNOW    = -4 #
+         ,NORMALV   =  0 #
+         ,NOFILE    = -1 #
+         ,PARMERROR = -2 #
+         ,COLLISION = -3 #
+         ,PBITF     = [47:1] #
+         ,DIAGF     = [46:2] #
+         ,DONTWAITF = [42:1] #
+         ,REMOVEDUPF= [41:1] #
+         ,NODIRSF   = [33:1] #
+         ,FILESDONEF= [30:1] #
+         ,COLLISIONF= [23:12] #
+         ,CFH       = CANDEFILEHANDLER #
+         ,P         = CODE & 1 DONTWAITF
+                           & REAL(PRIVILEGED:=CODE.PBITF=1) REMOVEDUPF
+                           & 0                              NODIRSF
+                           & 1 FILESDONEF
+                           ,P1,P2      #
+         ,TVALUE    = (IF (IF PRIVILEGED THEN TRUE
+                           ELSE T.COLLISIONF=0) THEN (NORMALV)
+                       ELSE (COLLISION)) #
+         ,INSERT    = REPLACE NEWFMLY BY #
+         ;
+  ARRAY FMLY,NEWFMLY[0:15];
+  BOOLEAN PRIVILEGED;
+  POINTER PFMLY,P1,P2;
+  REAL T;
+P1:= E1;
+P2:= E2;
+IF ((CODE:=*+1)=REMOVEV OR CODE=CHANGEV) THEN
+  BEGIN
+  REPLACE PFMLY:=POINTER(FMLY) BY MYSELF.FAMILY;
+  REPLACE NEWFMLY BY PFMLY:PFMLY UNTIL = "="
+                    ,PFMLY:PFMLY UNTIL IN ALPHA
+                    ,PFMLY       WHILE IN ALPHA
+                    ," ONLY.";
+  REPLACE MYSELF.FAMILY BY POINTER(NEWFMLY);
+  ZFH:=CASE (T:=CFH(P)).DIAGF OF (TVALUE,UNKNOW,NOFILE,PARMERROR);
+  REPLACE MYSELF.FAMILY BY POINTER(FMLY);
+  END
+ELSE
+  ZFH:=PARMERROR;
+END OF ZFH INTRN;
+$ PAGE
+INTEGER PROCEDURE ZGETFT (EA, EGSA, WINX);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   OBJETIVO: RETORNAR OS NOMES (TITTLE) E ALGUNS ATRIBUTOS DE   %
+%             ARQUIVOS DEBAIXO DE UM DIRETORIO OU DE UM ARQUIVO. %
+%   PARAMETROS:                                                  %
+%             1- ITEM 01 BINARY                                  %
+%             2- ITEM 01 BINARY                                  %
+%             3- ITEM 77 BINARY                                  %
+%   OBS: OS PARAMETROS 2 E 3 SAO SOMENTE USADOS INTERNAMENTE     %
+%        PELA LIBRARY E NAO PODEM SER USADOS PELO PROGRAMADOR    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+COMMENT
+   INTRINSIC NUMBER  = 140,21
+
+   PATCH HISTORY
+ 001 - INCLUDE "FILETYPE", "CYCLE" & "VERSION" ATTRIBUTES
+ 002 - CHECK "GSA" SIZE ONLY AT FIRST CALL
+ 003 - INCLUDE "TIMESTAMP" ATTRIBUTE AT WORD 6
+ 004 - INCLUDE "FILESIZE" PSEUDO-ATTRIBUTE AT WORD 7
+;
+  EBCDIC ARRAY EA, EGSA [0]; %
+  INTEGER WINX;
+BEGIN
+DEFINE P              = POINTER # %
+      ,ATW            = 10 # % NO OF RESERVED WORDS FOR NUMERIC ATTRIB
+      ,CREADATE       = A[0] # % CREATION DATE
+      ,LASTDATE       = A[1] # % LASTACCESS DATE
+      ,FILEK          = A[2] # % FILEKIND
+      ,LASTR          = A[3] # % PSEUDO LASTRECORD; SEE COMMENT;
+      ,FILET          = A[4] # % FILETYPE
+      ,OPENCNT        = A[5].[47:10] # % OPEN COUNT
+      ,CYCLE          = A[5].[23:16] # % CYCLE
+      ,VERSION        = A[5].[7:8] # % VERSION
+      ,TIMEST         = A[6] # % TIMESTAMP
+      ,FILESZ         = A[7] # % FILESIZE IN SECTORS (MASK BIT 22)
+      ,TITLE          = POINTER(A[ATW]) # % FILE TITLE
+      ,NOOFFILES      = 50 # % REQUESTED NO OF FILES
+      ,MINGSASZ       = 256 # % MINIMUM GSA SIZE
+      ,GSLINKF        = [32:17] # % WORD/CHAR LINK
+      ,GSADDLINFOF    = [46:08] # % FILEKIND
+      ,GSERRORF       = [47:01] # %
+      ,GSERRORVALUEF  = [46:08] # % BE WARE;IT OVERLAPS GSADDLINFOF
+      ,GSITEM(A,X)    = A[I+X+1] # % I POINTS TO MASK WORD
+      ,GSTITLELNK     = 0 #
+      ,GSHEADERLNK    = 8 #
+      ,GSSIZE         = 22 # % LINK TO FILESIZE
+      ,HDROPENCNT(A)  = A[HDRX+1].[47:12] # % OPEN COUNT WHEN IN USE
+      ,HDREXTMODE(A)  = A[HDRX+2].[42:03] # % EXTMODE
+      ,HDRUNITS(A)    = A[HDRX+2].[39:01] # % HDRUNITS (WORD OR CHAR)
+      ,HDRFILETYPE(A) = A[HDRX+2].[38:04] # % FILETYPE
+      ,HDRBLKSZ(A)    = A[HDRX+3].[47:16] # % BLOCKSIZE
+      ,HDRRECSZ(A)    = A[HDRX+3].[15:16] # % MAXRECSIZE
+      ,HDRCREADATE(A) = A[HDRX+10].[47:16] # % CREATION DATE
+      ,HDRTIMEST(A)   = A[HDRX+4] # % HDR TIMESTAMP
+      ,HDRLASTDATE(A) = A[HDRX+12].[47:16] # % LASTACCESS DATE
+      ,HDRCYCLE(A)    = A[HDRX+06].[37:14] # % FILE CYCLE
+      ,HDRVERSION(A)  = A[HDRX+06].[23:8] # % FILE VERSION
+      ,HDRDSKEOFU(A)  = A[HDRX+09].[47:20] # % NO OF BITS ON LAST SEG
+      ,HDRDSKEOFV(A)  = A[HDRX+09].[27:28] # % NO OF SEGS BEFORE EOF
+      ,RETURN (V)     = BEGIN % SIMULATES ESPOL RETURN STMT
+                        ZGETFT:=V;
+                        GO EXIT
+                        END #; %
+BOOLEAN MOREFILES % GESTATUS MUST BE INVOKED AGAIN TO REMAINDER FILES
+       ,BI; % BOOLEAN(I)
+ARRAY GSA[0]=EGSA;
+ARRAY A[0]=EA;
+POINTER PT; % POINTS TO TITLE IN DISPLAY FORMAT
+REAL I=BI % SCRATCH AND INDEX TO MASK WORD
+    ,SZ %   "A" SIZE
+    ,HDRX % INDEX TO CURRENT HEADER
+    ,T1, T2, T3, T4; % SCRATCHES
+LABEL EXIT;
+SZ:=SIZE(A)*6;
+MOREFILES:=BOOLEAN(GSA[0].GSERRORF);
+IF WINX EQL 0 THEN
+    BEGIN
+    GSA[0]:=NOOFFILES & REAL(MOREFILES) GSERRORF;
+    IF NOT MOREFILES THEN
+        BEGIN
+        IF SIZE(GSA) LSS MINGSASZ THEN RETURN(102);
+        SCAN P(A) FOR I:SZ UNTIL EQL ".";
+        IF I EQL 0 THEN RETURN(100) ELSE I:=SZ-I;
+        REPLACE P(GSA[NOOFFILES]) BY P(A) FOR I+1;
+        I:=4"103"& 1 [40:1]& 1[39:1]; %INIT REQ & RETURNFULLNAME
+        END
+    ELSE I:=4"403"& 1[40:1] & 1[39:1]; % CONT REQ & RETURNFULLNAME
+    IF REAL(BI:=GETSTATUS(I,0,4"400181",GSA)) GTR 1 THEN % MASK CHANGE
+        RETURN(I.[11:08]);% HARD ERROR NO
+    WINX:=1;
+    END OF INITIAL AND CONTINUATION REQUEST;
+IF BI THEN  IF BOOLEAN(GSA[1].GSERRORF) THEN
+    RETURN(GSA[1].GSERRORVALUEF); % SOFT ERROR NO
+IF WINX LSS GSA[0]-1 THEN
+    BEGIN
+    I:=GSA[WINX:=*+1].GSLINKF; % NOW I POINTS TO MASK WORD
+    FILEK:=GSITEM(GSA,GSTITLELNK).GSADDLINFOF;
+    HDRX:=GSITEM(GSA,GSHEADERLNK).GSLINKF DIV 6; %HDRX POINTS TO HEADER
+    OPENCNT:=HDROPENCNT(GSA)-1; % DONT COUNT MYSELF
+    CREADATE:=HDRCREADATE(GSA);
+    CREADATE:=* + 70000;% APARTIR DA 3.7
+    LASTDATE:=HDRLASTDATE(GSA);
+    LASTDATE:=* + 70000;% APARTIR DA 3.7
+    FILET:=HDRFILETYPE(GSA);
+    CYCLE:=HDRCYCLE(GSA);
+    VERSION:=HDRVERSION(GSA);
+    TIMEST:=HDRTIMEST (GSA);
+    FILESZ:=GSITEM(GSA,GSSIZE);
+    COMMENT
+        NOW COMPUTES PSEUDO LASTRECORD:
+            IF FILETYPE = 0 THEN NUMBER OF RECORDS
+            ELSE NUMBER OF BLOCKS;
+    T3:=CASE (T1:=HDRUNITS(GSA)*HDREXTMODE(GSA)) OF (1,1,12,8,6,6);
+    T2:=HDRDSKEOFV(GSA) MOD (T4:=(MAX(HDRBLKSZ(GSA),1)+(T3*30)-1)
+         DIV (T3*30))*T3*30 +
+        (HDRDSKEOFU(GSA)+(CASE T1 OF (47,47,3,5,7,7)))
+         DIV (48 DIV T3); % HDRUNITS IN LAST BLOCK
+    T2:=MIN(T2, T3:=MAX(HDRBLKSZ(GSA),2));%BEWARE OF HDRBLKSZ LSS A SEG
+    T1:=HDRRECSZ(GSA); % SAVE ARRAY ACCESS
+    T2:=* + HDRDSKEOFV(GSA) DIV T4 * (T3 DIV T1) * T1;
+    LASTR:=IF FILET EQL 0 THEN ((T2+T1-1) DIV T1-1)+1
+         ELSE ((T2+T3-1) DIV T3-1)+1;
+    COMMENT
+       NOW BUILD UP FILE TITLE;
+    IF T2:=REAL(EGSA[T3:=GSITEM(GSA,GSTITLELNK).GSLINKF],2)
+           GTR SZ-(6*ATW+1+4+REAL(EGSA[(T1:=GSA[NOOFFILES]
+           .GSLINKF)],1)) THEN RETURN (101);
+    REPLACE PT:TITLE BY EGSA[T3+2] FOR T2, " ON "
+       ,EGSA[T1+1] FOR REAL(EGSA[T1],1), ".";
+    REPLACE PT BY " " FOR SZ-(OFFSET(PT));
+    END
+ELSE
+    BEGIN
+    WINX:=0;
+    ZGETFT:=IF MOREFILES THEN -2 ELSE -1;
+    END OF FINISH;
+ EXIT :
+%----
+END OF ZGETFT;
+INTEGER PROCEDURE ZGETFT4 (EA, EGSA, WINX);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   OBJETIVO: RETORNAR OS NOMES (TITTLE) E ALGUNS ATRIBUTOS DE   %
+%             ARQUIVOS DEBAIXO DE UM DIRETORIO OU DE UM ARQUIVO. %
+%   PARAMETROS:                                                  %
+%             1- ITEM 01 BINARY                                  %
+%             2- ITEM 01 BINARY                                  %
+%             3- ITEM 77 BINARY                                  %
+%   OBS: OS PARAMETROS 2 E 3 SAO SOMENTE USADOS INTERNAMENTE     %
+%        PELA LIBRARY E NAO PODEM SER USADOS PELO PROGRAMADOR    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+COMMENT
+   INTRINSIC NUMBER  = 140,21
+
+   PATCH HISTORY
+ 001 - INCLUDE "FILETYPE", "CYCLE" & "VERSION" ATTRIBUTES
+ 002 - CHECK "GSA" SIZE ONLY AT FIRST CALL
+ 003 - INCLUDE "TIMESTAMP" ATTRIBUTE AT WORD 6
+ 004 - INCLUDE "FILESIZE" PSEUDO-ATTRIBUTE AT WORD 7
+;
+   EBCDIC ARRAY EA, EGSA [0]; %
+   INTEGER WINX;
+BEGIN
+   DEFINE P           = POINTER # %
+      ,ATW            = 10 # % NO OF RESERVED WORDS FOR NUMERIC ATTRIB
+      ,CREADATE       = A[0] # % CREATION DATE
+      ,LASTDATE       = A[1] # % LASTACCESS DATE
+      ,FILEK          = A[2] # % FILEKIND
+      ,LASTR          = A[3] # % PSEUDO LASTRECORD; SEE COMMENT;
+      ,FILET          = A[4] # % FILETYPE
+      ,OPENCNT        = A[5].[47:10] # % OPEN COUNT
+      ,CYCLE          = A[5].[23:16] # % CYCLE
+      ,VERSION        = A[5].[7:8] # % VERSION
+      ,TIMESTDATE     = A[6] # % TIMESTAMP DATE
+      ,TIMESTTIME     = A[7] # % TIMESTAMP TIME
+      ,FILESZ         = A[8] # % FILESIZE IN SECTORS (MASK BIT 22)
+      ,TITLE          = POINTER(A[ATW]) # % FILE TITLE
+      ,NOOFFILES      = 50 # % REQUESTED NO OF FILES
+      ,MINGSASZ       = 256 # % MINIMUM GSA SIZE
+      ,GSLINKF        = [32:17] # % WORD/CHAR LINK
+      ,GSADDLINFOF    = [46:08] # % FILEKIND
+      ,GSERRORF       = [47:01] # %
+      ,GSERRORVALUEF  = [46:08] # % BE WARE;IT OVERLAPS GSADDLINFOF
+      ,GSITEM(A,X)    = A[I+X+1] # % I POINTS TO MASK WORD
+      ,GSTITLELNK     = 0 #
+      ,GSHEADERLNK    = 8 #
+      ,GSSIZE         = 22 # % LINK TO FILESIZE
+      ,HDROPENCNT(A)  = A[HDRX+1].[47:12] # % OPEN COUNT WHEN IN USE
+      ,HDREXTMODE(A)  = A[HDRX+2].[42:03] # % EXTMODE
+      ,HDRUNITS(A)    = A[HDRX+2].[39:01] # % HDRUNITS (WORD OR CHAR)
+      ,HDRFILETYPE(A) = A[HDRX+2].[38:04] # % FILETYPE
+      ,HDRBLKSZ(A)    = A[HDRX+3].[47:16] # % BLOCKSIZE
+      ,HDRRECSZ(A)    = A[HDRX+3].[15:16] # % MAXRECSIZE
+      ,HDRCREADATE(A) = A[HDRX+10].[47:16] # % CREATION DATE
+      ,HDRTIMEST(A)   = A[HDRX+4] # % HDR TIMESTAMP
+      ,HDRLASTDATE(A) = A[HDRX+12].[47:16] # % LASTACCESS DATE
+      ,HDRCYCLE(A)    = A[HDRX+06].[37:14] # % FILE CYCLE
+      ,HDRVERSION(A)  = A[HDRX+06].[23:8] # % FILE VERSION
+      ,HDRDSKEOFU(A)  = A[HDRX+09].[47:20] # % NO OF BITS ON LAST SEG
+      ,HDRDSKEOFV(A)  = A[HDRX+09].[27:28] # % NO OF SEGS BEFORE EOF
+      ,RETURN (V)     = BEGIN % SIMULATES ESPOL RETURN STMT
+                           ZGETFT4:=V;
+                           GO EXIT
+                        END #; %
+   BOOLEAN MOREFILES % GESTATUS MUST BE INVOKED AGAIN TO REMAINDER FILES
+          ,BI; % BOOLEAN(I)
+   ARRAY GSA[0]=EGSA;
+   ARRAY A[0]  =EA;
+   REAL TIMEST;
+   POINTER PT; % POINTS TO TITLE IN DISPLAY FORMAT
+   REAL I=BI   % SCRATCH AND INDEX TO MASK WORD
+       ,SZ %   "A" SIZE
+       ,HDRX % INDEX TO CURRENT HEADER
+       ,T1, T2, T3, T4; % SCRATCHES
+   LABEL EXIT;
+%
+   SZ:=SIZE(A)*6;
+   MOREFILES:=BOOLEAN(GSA[0].GSERRORF);
+   IF WINX EQL 0 THEN
+   BEGIN
+      GSA[0]:=NOOFFILES & REAL(MOREFILES) GSERRORF;
+      IF NOT MOREFILES THEN
+      BEGIN
+         IF SIZE(GSA) LSS MINGSASZ THEN RETURN(102);
+         SCAN P(A) FOR I:SZ UNTIL EQL ".";
+         IF I EQL 0 THEN RETURN(100) ELSE I:=SZ-I;
+         REPLACE P(GSA[NOOFFILES]) BY P(A) FOR I+1;
+         %INIT REQ & RETURNFULLNAME & RETAINUSERCODE
+         I:=4"103"& 1 [40:1]& 1[39:1] & 1 [42:01];
+      END
+      ELSE % CONT REQ & RETURNFULLNAME & RETAINUSERCODE
+         I:=4"403"& 1[40:1] & 1[39:1] & 1 [42:01];
+      IF REAL(BI:=GETSTATUS(I,0,4"400181",GSA)) GTR 1 THEN % MASK CHANGE
+         RETURN(I.[11:08]);% HARD ERROR NO
+      WINX:=1;
+   END OF INITIAL AND CONTINUATION REQUEST;
+   IF BI THEN  IF BOOLEAN(GSA[1].GSERRORF) THEN
+      RETURN(GSA[1].GSERRORVALUEF); % SOFT ERROR NO
+   IF WINX LSS GSA[0]-1 THEN
+   BEGIN
+      I       := GSA[WINX:=*+1].GSLINKF; % NOW I POINTS TO MASK WORD
+      FILEK   := GSITEM (GSA,GSTITLELNK).GSADDLINFOF;
+      HDRX    := GSITEM (GSA,GSHEADERLNK).GSLINKF DIV 6; %HDRX POINTS TO
+      OPENCNT := HDROPENCNT (GSA)-1; % DONT COUNT MYSELF
+      CREADATE:= HDRCREADATE (GSA);
+      CREADATE:= * + 1970000;
+      LASTDATE:= HDRLASTDATE(GSA);
+      LASTDATE:= * + 1970000;
+      FILET   := HDRFILETYPE (GSA);
+      CYCLE   := HDRCYCLE (GSA);
+      VERSION := HDRVERSION (GSA);
+      TIMEST  := HDRTIMEST (GSA);
+      TIMESTDATE := TIMEST.[47:16] + 1970000;
+      TIMESTTIME := TIMEST.[31:32] * 16;
+      FILESZ  := GSITEM (GSA,GSSIZE);
+      COMMENT
+        NOW COMPUTES PSEUDO LASTRECORD:
+            IF FILETYPE = 0 THEN NUMBER OF RECORDS
+            ELSE NUMBER OF BLOCKS;
+      T3:=CASE (T1:=HDRUNITS(GSA)*HDREXTMODE(GSA)) OF (1,1,12,8,6,6);
+      T2:=HDRDSKEOFV(GSA) MOD (T4:=(MAX(HDRBLKSZ(GSA),1)+(T3*30)-1)
+          DIV (T3*30))*T3*30 +
+              (HDRDSKEOFU(GSA)+(CASE T1 OF (47,47,3,5,7,7)))
+          DIV (48 DIV T3); % HDRUNITS IN LAST BLOCK
+      T2:=MIN(T2, T3:=MAX(HDRBLKSZ(GSA),2));%BEWARE OF HDRBLKSZ LSS A SE
+      T1:=HDRRECSZ(GSA); % SAVE ARRAY ACCESS
+      T2:=* + HDRDSKEOFV(GSA) DIV T4 * (T3 DIV T1) * T1;
+      LASTR:=IF FILET EQL 0 THEN ((T2+T1-1) DIV T1-1)+1
+             ELSE ((T2+T3-1) DIV T3-1)+1;
+      COMMENT
+         NOW BUILD UP FILE TITLE;
+      IF T2:=REAL(EGSA[T3:=GSITEM(GSA,GSTITLELNK).GSLINKF],2)
+         GTR SZ-(6*ATW+1+4+REAL(EGSA[(T1:=GSA[NOOFFILES]
+         .GSLINKF)],1)) THEN RETURN (101);
+      REPLACE PT:TITLE BY EGSA[T3+2] FOR T2, " ON "
+             ,EGSA[T1+1] FOR REAL(EGSA[T1],1), ".";
+      REPLACE PT BY " " FOR SZ-(OFFSET(PT));
+   END
+   ELSE
+   BEGIN
+      WINX:=0;
+      ZGETFT4:=IF MOREFILES THEN -2 ELSE -1;
+   END OF FINISH;
+EXIT :
+END OF ZGETFT4;
+$PAGE
+%% ZGETSTATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                      %
+%    ESTA ROTINA RETORNA O NOME DA ESTACAO QUE DISPAROU O PROGRAMA     %
+%                                                                      %
+%                        (SEM OS HOSTNAMES)                            %
+%                                                                      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ PROCEDURE ZGETSTATION (P); VALUE P; POINTER P;
+ BEGIN
+  ARRAY A[0:0]; POINTER P1, P2;
+  DEFINE CAND (X, Y) = IF X THEN Y ELSE FALSE #;
+
+  A[0] := ABS (MYSELF.STATION);
+  DCSYSTEMTABLES (4, A);
+
+  P1 := (P2 := POINTER (A[16]) + 3) + 1;
+  WHILE CAND (P1 = "DTP", P2 NEQ 48"00") DO
+   P1 := (P2 := P1 + REAL (P2,1)) + 1;
+  REPLACE P BY P1 FOR REAL (P2,1);
+ END OF ZGETSTATION;
+$PAGE
+ PROCEDURE ZHISTOA
+           (ZFILE,TOTAIS,INICIOX,DELTAX,MAXFX,MAIORX,PERCX,PERCACMX);
+%% ZHISTOA %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%      O INTRINSECO IMPRIME UM HISTOGRAMA A PARTIR DO ARRAY ESPECI- %
+%    CADO NO 2. PARAMETRO.                                          %
+%                                                                   %
+%    PARAMETROS :                                                   %
+%        ZFILE  : ARQUIVO ONDE SERA IMPRESSO O HISTOGRAMA           %
+%                                                                   %
+%      TTOTAIS  : EBCDIC ARRAY ONDE SERAO DEFINIDAS AS OBS.         %
+%                 ITEM 01 DISPLAY.                                  %
+%                                                                   %
+%       INICIO  : VALOR INICIAL DA VARIACAO. NUMERICO.              %
+%                                                                   %
+%        DELTA  : VARIACAO DAS CLASSES. NUMERICO.                   %
+%                                                                   %
+%         MAXF  : TOTAL DAS OBS. ESPECIFICADAS NO 2. PARAMETRO      %
+%                                                                   %
+%        MAIOR  : INDICADOR PARA QUE SEJAM IMPRESSAS AS CLASSES QUE %
+%                 FOREM MAIORES QUE A PENULTIMA CLASSE ESPECIFICADA %
+%                 COMO UMA CLASSE UNICA.                            %
+%                                                                   %
+%                                                                   %
+%         PERC  : INDICADOR PARA QUE SEJA IMPRESSO O PERCENTUAL     %
+%                 CADA CLASSE EM RELACAO AO TOTAL DE OBS.           %
+%                                                                   %
+%      PERCACM  : INDICADOR PARA QUE SEJA IMPRESSO O PERCENTUAL  DE %
+%                 CADA CLASSE EM RELACAO AO TOTAL DE OBS.           %
+%                                                                   %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+ INTEGER INICIOX,
+         DELTAX,
+         MAXFX,
+         MAIORX,
+         PERCX,
+         PERCACMX;
+  FILE ZFILE;
+  ARRAY TOTAIS[0];
+BEGIN
+  REAL U,
+       I,
+       MAXIMO,
+       FATOR,
+       LIM,
+       K,
+       TOTAL,
+       TOTALPARC;
+INTEGER INICIO,
+        DELTA,
+        MAXF,
+        MAIOR,
+        PERC,
+        PERCACM;
+  ARRAY ARA[0:21];
+
+  EBCDIC VALUE ARRAY HIF(5("      "),3("---------+---------+---------+")
+                         ,"---------+  ");
+  EBCDIC VALUE ARRAY PERCT(5("      "),
+                         "       10%       20%       30%       40%  "
+                         "     50%       60%       70%       80%    "
+                         "   90%      100%  ");
+  BOOLEAN MAIORQ = MAIOR,
+          REGUA = PERC;
+  PICTURE Z8(ZZZZZZ9);
+  INICIO:=INICIOX;
+  DELTA:=DELTAX;
+  MAXF:=MAXFX;
+  MAIOR:=MAIORX;
+  PERC:=PERCX;
+  PERCACM:=PERCACMX;
+  REPLACE ARA BY " " FOR 22 WORDS;
+  U := IF ZFILE.UNITS = VALUE(CHARACTERS) THEN 132 ELSE 22;
+  IF REGUA
+    THEN
+      BEGIN
+        WRITE(ZFILE,U,PERCT);
+        WRITE(ZFILE,U,HIF);
+      END
+    ELSE
+      BEGIN
+        REPLACE ARA BY " " FOR 5 WORDS,
+                       "-" FOR 17 WORDS;
+        WRITE(ZFILE,U,ARA);
+      END;
+  REPLACE ARA BY " " FOR 22 WORDS;
+  MAXIMO := - 1;
+  FOR I := 0 STEP 1 UNTIL MAXF - 1 DO
+    BEGIN
+      MAXIMO := MAX(MAXIMO,TOTAIS[ I ]);
+      TOTAL := * + TOTAIS[ I ];
+    END;
+  FATOR := 100/MAXIMO;
+  FOR I := 0 STEP 1 UNTIL MAXF - 1 DO
+    BEGIN
+      REPLACE ARA BY " " FOR 21 WORDS;
+      LIM := INICIO;
+      K := (FIRSTONE(SCALERIGHTF(LIM,12)) - 1) DIV 4 + 1;
+      REPLACE ARA BY " " FOR 6 - K,
+                     LIM FOR K DIGITS;
+      REPLACE POINTER(ARA) + 6 BY " - ";
+      LIM := INICIO + DELTA;
+      K := (FIRSTONE(SCALERIGHTF(LIM,12)) - 1) DIV 4 + 1;
+      TOTALPARC := TOTALPARC + TOTAIS[ I ];
+      REPLACE POINTER(ARA) + 9 BY LIM FOR K DIGITS;
+      IF (I + 1) = MAXF AND MAIORQ
+        THEN
+          BEGIN
+            REPLACE ARA BY " " FOR 22 WORDS;
+            REPLACE ARA BY "> QUE";
+            REPLACE POINTER(ARA) + 9 BY INICIO FOR*DIGITS;
+          END;
+      REPLACE POINTER(ARA) + 21 BY TOTAIS[ I ] FOR 7 DIGITS;
+      REPLACE POINTER(ARA) + 21 BY POINTER(ARA) + 21 WITH Z8;
+      REPLACE POINTER(ARA) + 29 BY "!";
+      REPLACE POINTER(ARA) + 30 BY "*" FOR TOTAIS[ I ]*FATOR;
+      REPLACE POINTER(ARA) + 130 BY "!";
+      IF PERCACM = 1
+        THEN
+          REPLACE POINTER(ARA) + 16 BY TOTAIS[ I ]/TOTAL*100 FOR 4
+                                           NUMERIC,
+                                       "%"
+        ELSE
+      IF PERCACM = 2
+        THEN
+          REPLACE POINTER(ARA) + 16 BY TOTALPARC/TOTAL*100 FOR 4 NUMERIC
+                                           ,
+                                       "%";
+      WRITE(ZFILE,U,ARA);
+      REPLACE ARA BY " " FOR 22 WORDS;
+      INICIO := * + (DELTA + 1);
+    END;
+  REPLACE ARA BY " " FOR 22 WORDS;
+  IF REGUA
+    THEN
+      BEGIN
+        WRITE(ZFILE,U,HIF);
+        WRITE(ZFILE,U,PERCT);
+        REPLACE ARA BY " " FOR 22 WORDS;
+        WRITE(ZFILE);
+        WRITE(ZFILE);
+      END
+    ELSE
+      BEGIN
+        REPLACE ARA BY " " FOR 5 WORDS,
+                       "-" FOR 100;
+        WRITE(ZFILE,U,ARA);
+        WRITE(ZFILE);
+        WRITE(ZFILE);
+      END;
+  REPLACE ARA BY " " FOR 22 WORDS;
+  REPLACE POINTER(ARA)+64 BY
+          "PERCENTAGEM DA CLASSE MODAL";
+  WRITE(ZFILE,U,ARA);
+  WRITE(ZFILE);
+  REPLACE ARA BY " " FOR 22 WORDS;
+  REPLACE ARA BY " CADA * REPRESENTA - ",
+                 1/FATOR FOR*NUMERIC,
+                 " OCORRENCIAS.";
+  WRITE(ZFILE,U,ARA);
+END ZHISTOA;
+$PAGE
+INTEGER PROCEDURE ZHORA;
+%% Z H O R A   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:  FINALIDADE: DEVOLVER A HORA (HHMMSS) DO SISTEMA AO USUARIO.        %
+%:                                                                     %
+%:  PARAMETRO:  HORA  -  CAMPO ONDE SERA DEVOLVIDO A HORA DO SISTEMA   %
+%:                                                                     %
+%:  CHAMADA:  CALL "ZHORA IN LIB/INTRINSECOS" GIVING HORA.          \
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+BEGIN %
+ REAL T11;
+DEFINE SEG = (1250000/3) # % 1 SEG EM 2.4 MICRO-SEGS
+      ,MIN = 25000000 # %
+      ,HOR = 1500000000 # %
+      ,DIA = 36000000000 # ; %
+   T11:= TIME(11);
+  ZHORA:= ((T11 MOD DIA) DIV HOR) * 10000 %
+        +((T11 MOD HOR)DIV MIN) * 100 %
+        +(T11 MOD MIN)DIV SEG; %
+END OF ZHORA LIB;
+$ PAGE
+INTEGER PROCEDURE ZJULTODMA(DJX);
+%% Z J U L T O D M A  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER UMA DATA JULIANA PARA DDMMAA  %
+%:                                                      %
+%:   PARAMETRO:                                         %
+%:                                                      %
+%:        DJX  - DATA JULIANA A SER CONVERTIDA          %
+%:               EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                      %
+%:        DATA - CAMPO RECEPTOR DA DATA (DDMMAA).       %
+%:               EM COBOL, USAGE BINARY "77" OU "01"    %
+%:                                                      %
+%:   CHAMADA: CALL "ZJULTODMA IN LIB/INTRINSECOS"       %
+%:                 USING DJX                            %
+%:                 GIVING DATA                          %
+%:                                                      %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+ INTEGER DJX;
+%
+        BEGIN   %
+%
+          INTEGER DJ;
+          REAL D, M, A, LEAP;      %
+%
+
+
+          DJ:=DJX;
+          LEAP := REAL((A := (DJ DIV 1000 MOD 100)) MOD 4 = 0); %
+          DJ   := * MOD 1000;   %
+          D    := DJ + (IF DJ GTR (LEAP + 59) THEN 2 - LEAP ELSE 0); %
+          M    := ((D + 91) * 100) DIV 3055;   %
+          D    := (D + 91) - (M * 3055) DIV 100;   %
+          M    := M - 2;  %
+    ZJULTODMA:=A+M*100+D*10000;
+END OF ZJULTODMA LIB;  %
+
+
+$ PAGE
+INTEGER PROCEDURE ZJULTODMA4(DJX);
+%% Z J U L T O D M A 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER UMA DATA JULIANA PARA DDMMAAAA %
+%:                                                       %
+%:   PARAMETRO:                                          %
+%:                                                       %
+%:        DJX  - DATA JULIANA A SER CONVERTIDA           %
+%:               EM COBOL, USAGE BINARY "77" OU "01"     %
+%:                                                       %
+%:        DATA - CAMPO RECEPTOR DA DATA (DDMMAAAA).      %
+%:               EM COBOL, USAGE BINARY "77" OU "01"     %
+%:                                                       %
+%:   CHAMADA: CALL "ZJULTODMA4 IN LIB/INTRINSECOS"       %
+%:                 USING DJX                             %
+%:                 GIVING DATA                           %
+%:                                                       %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+ INTEGER DJX;
+%
+        BEGIN   %
+%
+          INTEGER DJ;
+          REAL D, M, A, LEAP;      %
+%
+
+
+          DJ:=DJX;
+          LEAP := REAL((A := (DJ DIV 1000)) MOD 4 = 0); %
+          DJ   := * MOD 1000;   %
+          D    := DJ + (IF DJ GTR (LEAP + 59) THEN 2 - LEAP ELSE 0); %
+          M    := ((D + 91) * 100) DIV 3055;   %
+          D    := (D + 91) - (M * 3055) DIV 100;   %
+          M    := M - 2;  %
+    ZJULTODMA4:=A+M*10000+D*1000000;
+END OF ZJULTODMA4 LIB;  %
+
+ $ PAGE
+REAL PROCEDURE ZLOG (NUMERO);
+%:Z L O G %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTA PROCEDURE TEM COMO FINALIDADE DE CALCULAR O      %
+%:  O LOGARITMO DE UM NUMERO NA BASE DEZ. ESTA PROCEDURE    %
+%:  E NECESSARIA PORQUE O COBOL74 NAO TEM ESTA FUNCAO.      %
+%:    DEVEM SER DEFINIDAS DUAS VARIAVEIS DO TIPO REAL NO    %
+%:  PROGRAMA EM COBOL74.                                    %
+%:    EXEMPLO:                                              %
+%:                                                          %
+%:           77 NUMERO      REAL                            %
+%:           77 LOGARITMO   REAL                            %
+%:                   .                                      %
+%:                   .                                      %
+%:                   .                                      %
+%:           CALL "ZLOG IN DTP/L1" USING  NUMERO            %
+%:                                 GIVING LOGARITMO         %
+%:                                                          %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ REAL NUMERO;
+ BEGIN
+ ZLOG:=LOG(NUMERO);
+ END;
+ $ PAGE
+INTEGER PROCEDURE ZMAISR; %
+%:Z M A I S R %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE INTRINSECO TEM A FINALIDADE DE PEDIR AO         %
+%:  OPERADOR,VIA CONSOLE, INFORMACAO SOBRE A EXISTENCIA    %
+%:  OU NAO DE MAIS ARQUIVOS A PROCESSAR. ESTA OPERACAO     %
+%:  RETORNA A RESPOSTA SOB FORMA LOGICA. O USUARIO FARA    %
+%:  SOMENTE UM TESTE DA BOOLEAN  ZMAISR.                   %
+%:                                                         %
+%:  RESULTADO:     TRUE   - EXISTENCIA DE MAIS ROLO        %
+%:                 FALSE  - ULTIMO ROLO .                  %
+%:                                                         %
+%:  CHAMADA:       COBOL  - IF ZMAISR ...                  %
+%:                 ALGOL  - IF ZMAISR THEN ...             %
+%:                                                         %
+%:  LINGUAGEM                                              %
+%:  PARA  USO:     COBOL                                   %
+%:                 ALGOL.                                  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:
+BEGIN %
+EBCDIC ARRAY A [0:24]; %
+LABEL RETRY; %
+ RETRY : %
+%-----
+REPLACE A BY "MAIS ROLO S OU N", 4"00"; %
+ACCEPT(A); %
+IF A EQL "N" THEN %
+ELSE  %
+IF A EQL "S" THEN %
+  ZMAISR := 1    %
+ELSE GO RETRY; %
+END OF INTRN MAIS ROLO; %
+ $ PAGE
+PROCEDURE ZMINVN(A,B,MAXIMOX,POSAX,POSBX,TCH);
+%% Z M I N V N  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%: FINALIDADE:     MOVER UM CAMPO PARA OUTRO INVERTENDO    %
+%:  TODOS OS CARACTERES NUMERICOS DO CAMPO DE ORIGEM PARA  %
+%:  O DE DESTINO. A TRANSFERENCIA CESSA QUANDO ENCONTRA UM %
+%:  CARACTER NAO NUMERICO.                                 %
+%:                                                         %
+%:  PARAMETRO(S):                                          %
+%:                                                         %
+%:          A     - CAMPO A SER INVERTIDO NO MOVIMENTO.    %
+%:                  EM COBOL, USAGE DISPLAY "77" OU "01"   %
+%:                                                         %
+%:          B     - RESULTADO DA INVERSAO.                 %
+%:                  EM COBOL, USAGE DISPLAY "77" OU "01"   %
+%:                                                         %
+%:     MAXIMO     - N. MAXIMO DE CARACTERES QUE DEVEM SER  %
+%:                  MOVIDOS. EM COBOL, USAGE DISPLAY "77"  %
+%:                         OU "01".                        %
+%:                                                         %
+%:       POSA     - POSICAO (DENTRO DE "A") A PARTIR DE    %
+%:                  ONDE COMECARA A TRANSFERENCIA.         %
+%:                                                         %
+%:       POSB     - POSICAO (DENTRO DE "B") A PARTIR DE    %
+%:                  ONDE SERA COLOCADO O CONTEUDO DE "A".  %
+%:                                                         %
+%:       TCH      - INFORMA A QTD. DE CARACTERES QUE FORAM %
+%:                  TRANSFERIDOS.                          %
+%:                                                         %
+%: CHAMADA: CALL "ZMINVN IN LIB/INTRINSECOS" USING         %
+%:           A B MAXIMO POSA POSB TCH                      %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  INTEGER MAXIMOX, POSAX, POSBX, TCH; %
+  EBCDIC ARRAY A, B [0]; %
+BEGIN %
+INTEGER MAXIMO, POSA, POSB; %
+REAL T; %
+LABEL EOT; %
+MAXIMO:=MAXIMOX; %
+POSA:=POSAX-1; %
+POSB:=(POSBX + MAXIMO-1)-1; %
+WHILE T NEQ MAXIMO DO %
+  IF REAL(A[POSA],1) GTR 239 THEN %
+    BEGIN %
+    REPLACE B[POSB] BY A[POSA] FOR 1; %
+    POSA:=*+1; %
+    POSB:=*-1; %
+    T:=*+1; %
+    END %
+  ELSE GO EOT; %
+ EOT : %
+%---
+TCH:=T; %
+END OF ZMINVN LIB;
+$ PAGE
+INTEGER PROCEDURE ZMOD11(MOD11,QX,R);EBCDIC ARRAY MOD11[0];
+                                   INTEGER QX, R;
+%% Z MOD11  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : CALCULAR DIGITO DE CONTROLE SEGUNDO NOTA DISTRIBUIDA   %
+%:              PELA "SDT" INTITULADA "ROTINA PADRONIZADA PARA CALCULO %
+%:                                     DO DIGITO DE CONTROLE".         %
+%:                                                                     %
+%: PARAMETROS :                                                        %
+%:       MOD11- CAMPO SUBMETIDO AO CALCULO.                            %
+%:              EM COBOL, USAGE DISPLAY "77" OU "01"                   %
+%:                                                                     %
+%:          Q - COMPRIMENTO DO CAMPO.                                  %
+%:               EM COBOL, USAGE DISPLAY "77" OU "01"                  %
+%:                                                                     %
+%:          R - DIGITO DE CONTROLE CALCULADO                           %
+%:              EM COBOL, USAGE DISPLAY "77" OU "01"                   %
+%:                                                                     %
+%: RESP:    1 - O VALOR DO DIGITO DE CONTROLE E RETORNADO.             %
+%:          0 - PRESENCA DE CARATER NAO NUMERICO NO CAMPO.             %
+%:                                                                     %
+%: CHAMADA: CALL "ZMOD11 IN LIB/INTRINSECOS" USING MOD11 Q R           %
+%:                                           GIVING RESP.              %
+%: OBSERVACOES:                                                        %
+%:          1)  O PARAMETRO ESPECIFICADOR DE COMPRIMENTO DO CAMPO      %
+%:              NAO E SUBMETIDO A NENHUM TESTE. UM VALOR ERRADO PODE   %
+%:              TER CONSEQUENCIAS IMPREVISIVEIS.                       %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+BEGIN
+VALUE ARRAY TV(4"FFC00000",0,0,0,0,0,0,0 , 0,0,0,0,0,0,0,4"FFC0");
+REAL  K,L,M;POINTER P;
+INTEGER Q;
+ Q:=QX;
+ P:= MOD11;
+ SCAN P FOR K:Q WHILE IN TV [SIZE(P) & 0 [2:3]];
+IF K NEQ 0 THEN ZMOD11:=0
+ELSE
+BEGIN
+L:=Q MOD 8 + 2;
+M:=0;
+THRU Q DO M := * + INTEGER(P:P,1) * (L:=*-(IF L=2 THEN -7 ELSE 1));
+ R:= IF (K:=11-M MOD 11) > 9 THEN 0 ELSE K;
+ ZMOD11:= 1;
+END;
+END OF ZMOD11;
+$ PAGE
+INTEGER PROCEDURE ZMOVAD(A,B,MAXIMOX,POSAX,POSBX,CHAR); %
+%% Z M O V A D %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE INTRINSECO TEM A FINALIDADE DE MOVER UM CAMPO   %
+%:  PARA OUTRO ATE ENCONTRAR UM CARACTER DELIMITADOR OU O  %
+%:  N. MAXIMO DE CARACTERES QUE PODERAO SER MOVIDOS.       %
+%:                                                         %
+%:  PARAMETROS(S):                                         %
+%:                                                         %
+%:          A     - CAMPO DE ORIGEM A SER MOVIDO. DEFINIDO %
+%:                  EM COBOL COMO ITEM DE GRUPO NIVEL 01   %
+%:                  DISPLAY(EBCDIC).                       %
+%:                                                         %
+%:          B     - CAMPO DE DESTINO. DEFINICAO IGUAL AO   %
+%:                  PRIMEIRO.                              %
+%:                                                         %
+%:     MAXIMO     - NUMERO MAXIMO DE CARACTERES QUE PODEM  %
+%:                  SER MOVIDOS.DEFINIDO COMO REAL.        %
+%:                  EX: 77 MAXIMO  PIC 99 COMP-1 VALUE ... %
+%:                                                         %
+%:       POSA     - N. DA POSICAO DO CAMPO DE ORIGEM A SER %
+%:                  TRANSFERIDO. DEFINIDO COMO REAL.       %
+%:                                                         %
+%:       POSB     - N. DA POSICAO DO CAMPO DE DESTINO.     %
+%:                  DEFINIDO COMO REAL.                    %
+%:                                                         %
+%:       CHAR     - CARACTER DELIMITADOR DO MOVIMENTO      %
+%:                  PASSADO POR VALOR.                     %
+%:                                                         %
+%:  CHAMADA:      - COBOL - COMPUTE NCHA = SUBS(A,B,MAX,   %
+%:                                         POSA,POSB,CHA). %
+%:                  ** OS PARAM. 3 4 5 E 6 PODEM SER       %
+%:                     LITERAIS NUMERICOS.                 %
+%:                                                         %
+%:  RESULTADO:    EM "NCHA" ESTA PROCEDURE DEVOLVE UM VALOR%
+%:                REAL QUE REPRESENTA O N.DE CARACTERES    %
+%:                TRANSFERIDOS.                            %
+%:                                                         %
+%:  LINGUAGEM                                              %
+%:  PARA  USO:    COBOL.                                   %
+%:                FORTRAN                                  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ $ PAGE
+
+  INTEGER MAXIMOX, POSAX, POSBX, CHAR; %
+  EBCDIC ARRAY A, B [0]; %
+BEGIN %
+REAL T; %
+INTEGER MAXIMO, POSA, POSB; %
+POSA:=POSAX-1; %
+POSB:=POSBX-1; %
+MAXIMO:=MAXIMOX; %
+REPLACE B[POSB] BY A[POSA] FOR T:MAXIMO UNTIL EQL CHAR.[7:8]; %
+ZMOVAD:=MAXIMO-T; %
+END OF INTRN ZMOVAD;%
+$ PAGE
+INTEGER PROCEDURE ZMOVC(A,B,QX,POSAX,POSBX);
+%% Z M O V C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE INTRINSECO MOVE CARACTERES ALFANUMERICOS DE UM  %
+%:  CAMPO  PARA  OUTRO  ATE A QUNTIDADE ESPECIFICADA NO    %
+%:  TERCEIRO PARAMETRO.                                    %
+%:                                                         %
+%:  PARAMETRO(S):                                          %
+%:          A      - CAMPO DE ORIGEM A SER TRANSFERIDO.    %
+%:                   DEFINIDO EM COBOL COMO ITEM DE GRUPO  %
+%:                   DISPLAY(EBCDIC) EM NIVEL 01.          %
+%:          B      - CAMPO DE DESTINO ONDE SERAO RECEBIDOS %
+%:                   OS CARACTERES ALFANUMERICOS. DEFINICAO%
+%:                   IGUAL AO PRIMEIRO.                    %
+%:                                                         %
+%:          Q      - QUANTIDADE DE CARACTERES ALFANUMERICOS%
+%:                   A SEREM TRANSFERIDOS. DEFINIDO COMO   %
+%:                   REAL.                                 %
+%:                                                         %
+%:       POSA      - NUMERO DA POSICAO DO CAMPO DE ORIGEM  %
+%:                   A SER TRANSFERIDO. DEFINIDO COMO REAL %
+%:                                                         %
+%:       POSB      - NUMERO DA POSICAO DO CAMPO DE DESTINO %
+%:                   ONDE SERAO RECEBIDOS OS CARACTERES AL %
+%:                   FANUMERICOS. DEFINIDO COMO REAL.      %
+%:                                                         %
+%:  CHAMADA:       - COBOL  COMPUTE NCHA = MOVC(A,B,Q,POSA,%
+%:                                              POSB).     %
+%:                 ** OS PARAM. 3 4 E 5 PODEM SER          %
+%:                 ** LITERAIS NUMERICOS.                  %
+%:  RESULTADO:     - ESTA PROCEDURE DEVOLVE EM NCHA O N.   %
+%:                   DE CARACTERES TRANSFERIDOS.           %
+%:  LINGUAGEM                                              %
+%:  PARA  USO:                                             %
+%:                 COBOL                                   %
+%:                 FORTRAN                                 %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+  INTEGER  QX, POSAX, POSBX; %
+  EBCDIC ARRAY A, B [0]; %
+BEGIN %
+INTEGER Q, POSA, POSB; %
+Q:=QX; %
+POSA:=POSAX-1; %
+POSB:=POSBX-1; %
+REPLACE B[POSB] BY A[POSA] FOR Q; %
+ZMOVC:=Q; %
+END OF ZMOVC LIB; %
+$ PAGE
+INTEGER PROCEDURE ZMOVND(A,B,MAXIMOX,POSAX,POSBX); %
+%% Z M O V N D%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE MOVE CARACTERES NUMERICOS DE UM CAMPO PARA OUTRO%
+%:  ENQUANTO FOR NUMERICO OU ATE O N. MAXIMO DE CARACTERES %
+%:  DEFINIDO NO TERCEIRO PARAMETRO.                        %
+%:                                                         %
+%:  PARAMETRO(S):                                          %
+%:                                                         %
+%:          A     - CAMPO DE ORIGEM.DEFINIDO EM COBOL COMO %
+%:                  ITEM DE GRUPO(NIVEL 01)DISPLAY(EBCDIC).%
+%:                                                         %
+%:          B     - CAMPO DE DESTINO. DEFINICAO IGUAL AO   %
+%:                  PRIMEIRO.                              %
+%:                                                         %
+%:     MAXIMO     - N. MAXIMO DE CARACTERES A SEREM MOVIDOS%
+%:                  DEFINIDO COMO REAL.                    %
+%:                  EX   77 MAXIMO  PIC  99 COMP-1  VA ... %
+%:                                                         %
+%:       POSA     - N. DA POSICAO DO CAMPO DE ORIGEM.      %
+%:                  DEFINICAO IGUAL AO  TERCEIRO PARAM.    %
+%:                                                         %
+%:       POSB     - N. DA POSICAO DO CAMPO DE DESTINO.     %
+%:                  DEFINICAO IGUAL AO 3 PARAM.            %
+%:                                                         %
+%:  CHAMADA EM                                             %
+%:  COBOL :    - COMPUTE NCHA = ZMOVND(A,B,MAX,POSA, POSB).%
+%:               ** PARAMETROS PASSADOS POR VALOR(REAL)    %
+%:                   PODEM SER LITERAL NUMERICO.           %
+%:                                                         %
+%:  RESULTADO:    DEVOLVE UM VALOR REAL EM "NCHA" QUE      %
+%:                INDICA O N. DE CARACTERES NUMERICOS      %
+%:                MOVIDOS.                                 %
+%:  LINGUAGEM                                              %
+%:  PARA USO:     COBOL.                                   %
+%:                FORTRAN                                  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:
+$ PAGE
+  INTEGER   POSAX, POSBX, MAXIMOX; %
+  EBCDIC ARRAY A, B [0]; %
+BEGIN %
+INTEGER POSA, POSB, MAXIMO; %
+REAL T; %
+TRUTHSET NUMBERS ("0123456789"); %
+MAXIMO:=MAXIMOX; %
+POSA:=POSAX-1; %
+POSB:=POSBX-1; %
+REPLACE B[POSB] BY A[POSA] FOR T:MAXIMO WHILE IN NUMBERS; %
+ZMOVND:=MAXIMO-T; %
+END OF ZMOVND LIB; %
+$ PAGE
+INTEGER PROCEDURE ZMUN (A,B,MAXIMOX,POSAX,POSBX); %
+%% Z M U N %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  ESTE INTRINSECO MOVE UM CAMPO PARA OUTRO INVERTENDO    %
+%:  TODOS OS CARACTERES NUMERICOS DO CAMPO DE ORIGEM PARA  %
+%:  O DE DESTINO. A TRANSFERENCIA CESSA QUANDO ENCONTRA UM %
+%:  CARACTER NAO NUMERICO.                                 %
+%:
+%:  PARAMETRO(S):                                          %
+%:                                                         %
+%:          A     - CAMPO DE ORIGEM A SER INVERTIDO NO MO  %
+%:                  VIMENTO. DEFINIDO EM COBOL EM ITEM DE  %
+%:                  GRUPO NIVEL 01  DISPLAY(EBCDIC).       %
+%:                                                         %
+%:          B     - CAMPO DE DESTINO. MOVEMENTO FEITO NO   %
+%:                  SENTIDO INVERSO(DA DIREITA PARA ESQUER %
+%:                  DA). DEFINICAO  IGUAL AO 1 PARAM.      %
+%:                                                         %
+%:     MAXIMO     - N. MAXIMO DE CARACTERES QUE DEVEM SER  %
+%:                  MOVIDOS. DEFINIDO EM COBOL COMO REAL.  %
+%:                  EX: 77 MAXIMO  PIC 9 COMP-1  VA  ...   %
+%:                                                         %
+%:       POSA     - N. DA POSICAO DO CAMPO DE ORIGEM.      %
+%:                  DEFINICAO  IGUAL AO  3  PARAM.         %
+%:                                                         %
+%:       POSB     - N. DA POSICAO DO CAMPO DE DESTINO.     %
+%:                  DEFINICAO   IGUAL AO 3 PARAMETRO.      %
+%:                                                         %
+%:  CHAMADA EM                                             %
+%:  COBOL:        - COMPUTE NCHA = ZMUN(A,B,MAX,POSA,POSB).%
+%:                                                         %
+%:                ** OS PARAM. 3 4 E 5  PODEM SER LITERAIS %
+%:                   NUMERICOS                             %
+%:  LINGUAGEM                                              %
+%:  PARA USO:     COBOL.                                   %
+%:                FORTRAN                                  %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:
+$ PAGE
+  INTEGER MAXIMOX, POSAX, POSBX; %
+  EBCDIC ARRAY A, B [0]; %
+BEGIN %
+REAL T; %
+LABEL EOT; %
+INTEGER MAXIMO, POSA, POSB; %
+MAXIMO:=MAXIMOX; %
+POSA:=POSAX-1; %
+POSB:=(POSBX + MAXIMO-1)-1; %
+WHILE T NEQ MAXIMO DO %
+  IF REAL(A[POSA],1) GTR 239 THEN %
+    BEGIN %
+    REPLACE B[POSB] BY A[POSA] FOR 1; %
+    POSA:=*+1; %
+    POSB:=*-1; %
+    T:=*+1; %
+    END %
+  ELSE GO EOT; %
+ EOT : %
+%---
+ZMUN:=T; %
+END OF INTRN ZMUN; %
+$ PAGE
+INTEGER PROCEDURE ZNUM(A,B,MAXIMOX,POSAX,POSBX); %
+%:Z N U M %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE MOVE CARACTERES NUMERICOS DE UM CAMPO PARA OUTRO%
+%:  ENQUANTO FOR NUMERICO OU ATE O N. MAXIMO DE CARACTERES %
+%:  DEFINIDO NO TERCEIRO PARAMETRO.                        %
+%:                                                         %
+%:  PARAMETRO(S):                                          %
+%:                                                         %
+%:          A     - CAMPO DE ORIGEM.DEFINIDO EM COBOL COMO %
+%:                  ITEM DE GRUPO(NIVEL 01)DISPLAY(EBCDIC).%
+%:                                                         %
+%:          B     - CAMPO DE DESTINO. DEFINICAO IGUAL AO   %
+%:                  PRIMEIRO.                              %
+%:                                                         %
+%:     MAXIMO     - N. MAXIMO DE CARACTERES A SEREM MOVIDOS%
+%:                  DEFINIDO COMO REAL.                    %
+%:                  EX   77 MAXIMO  PIC  99 COMP-1  VA ... %
+%:                                                         %
+%:       POSA     - N. DA POSICAO DO CAMPO DE ORIGEM.      %
+%:                  DEFINICAO IGUAL AO  TERCEIRO PARAM.    %
+%:                                                         %
+%:       POSB     - N. DA POSICAO DO CAMPO DE DESTINO.     %
+%:                  DEFINICAO IGUAL AO 3 PARAM.            %
+%:                                                         %
+%:  CHAMADA EM                                             %
+%:  COBOL :       - COMPUTE NCHA = ZNUM(A,B,MAX,POSA, POSB).%
+%:                ** PARAMETROS PASSADOS POR VALOR(REAL)   %
+%:                   PODEM SER LITERAL NUMERICO.           %
+%:                                                         %
+%:  RESULTADO:    DEVOLVE UM VALOR REAL EM "NCHA" QUE      %
+%:                INDICA O N. DE CARACTERES NUMERICOS      %
+%:                MOVIDOS.                                 %
+%:  LINGUAGEM                                              %
+%:  PARA USO:     COBOL.                                   %
+%:                FORTRAN                                  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:
+$ PAGE
+  INTEGER POSAX, POSBX, MAXIMOX; %
+  EBCDIC ARRAY A, B [0]; %
+BEGIN %
+REAL T; %
+TRUTHSET NUMBERS ("0123456789"); %
+INTEGER POSA, POSB, MAXIMO; %
+MAXIMO:=MAXIMOX; %
+POSA:=POSAX-1; %
+POSB:=POSBX-1; %
+REPLACE B[POSB] BY A[POSA] FOR T:MAXIMO WHILE IN NUMBERS; %
+ZNUM:=MAXIMO-T; %
+ END OF LIB   ZNUM; %
+$ PAGE
+PROCEDURE ZPCOMPAC(DDEST,FFONT,ESPACOX,TAM);
+ %% Z P C O M P A C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:        ESTE INTRINSECO COMPACTA CAMPOS ELIMINANDO REPETICOES DO     %
+%:   MESMO CARACTER.                                                   %
+%:   E USADA UMA MARCA (48"FA").  SOMENTE SAO COMPACTADAS REPETICOES   %
+%:   MAIORES QUE 3 CARACTERES A NAO SER QUE O CARACTER SEJA IGUAL A    %
+%:   MARCA (QUE E SEMPRE TRANSFORMADA).                                %
+%:                                                                     %
+%:   CAMPOS MAIORES QUE 255 POSICOES SAO SUBDIVIDIDOS EM VARIAS PARTES.%
+%:                                                                     %
+%:   PARAMETROS :                                                      %
+%:                                                                     %
+%:        DEST   -  POINTER ONDE VAI SER COLOCADO O CAMPO COMPACTADO   %
+%:                                                                     %
+%:        FONT   -  POINTER PARA O CAMPO A SER COMPACTADO              %
+%:                                                                     %
+%:        ESPACO -  TAMANHO DO CAMPO A SER COMPACTADO (EM BYTES)       %
+%:                                                                     %
+%:        TAM    - TAMANHO DO CAMPO COMPACTADO RESULTANTE (EM BYTES)   %
+%:                                                                     %
+%:   CHAMADA :                                                         %
+%:                                                                     %
+%:        COBOL - CALL ZPCOMPAC USING DEST01 FONT01 200 RESULT.        %
+%:        ALGOL - ZPCOMPAC(DESTP,FONTP,200,RESULT);                    %
+%:                                                                     %
+%:   LINGUAGENS = ALGOL,COBOL                                          %
+%:   PARA USO                                                          %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+EBCDIC ARRAY DDEST,FFONT[0];
+INTEGER ESPACOX,TAM;
+BEGIN
+POINTER DEST,FONT;
+DEFINE MARCA = 48"FA" #;
+REAL CHAR,SUBESPACO,SOBRA,ANDOU;
+INTEGER ESPACO;
+POINTER F2;
+ESPACO:=ESPACOX;
+DEST:=DDEST;
+FONT:=FFONT;
+F2:=FONT;
+DO BEGIN
+     CHAR:=REAL(FONT,1);
+     SUBESPACO:=MIN(255,ESPACO);
+     SCAN F2:FONT FOR SOBRA:SUBESPACO WHILE = CHAR;
+     ANDOU:=SUBESPACO-SOBRA;
+     IF ANDOU < 4 AND FONT ^= MARCA FOR 1 THEN BEGIN
+          TAM:=*+ANDOU;
+          REPLACE DEST:DEST BY FONT:FONT FOR ANDOU;
+          END ELSE BEGIN
+          REPLACE DEST:DEST BY MARCA,ANDOU.[7:48] FOR 1,FONT FOR 1;
+          TAM:=*+3;
+          FONT:=F2;
+          END;
+     END UNTIL (ESPACO:=*-ANDOU) = 0;
+END ZPCOMPAC;
+$ PAGE
+PROCEDURE ZPDECOMPAC(DDESTX,FFONTX,ESPACO);
+ %% Z P D E C O M P A C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:        ESTE INTRINSECO DESCOMPACTA CAMPOS COMPACTADOS PELO          %
+%:   INTRINSECO ZPCOMPAC                                               %
+%:                                                                     %
+%:   PARAMETROS :                                                      %
+%:                                                                     %
+%:        DEST   -  POINTER ONDE SERA COLOCADO O RESULTADO DESCOMP.    %
+%:                                                                     %
+%:        FONT   -  POINTER  PROVENIENTE DO INTRINSECO ZPCOMPAC.       %
+%:                                                                     %
+%:        ESPACO -  TAMANHO DO CAMPO A SER DESCOMPACTADO (EM BYTES).   %
+%:                                                                     %
+%:   CHAMADA :                                                         %
+%:                                                                     %
+%:        COBOL - CALL ZPDECOMPAC USING DEST FONT 120.                 %
+%:        ALGOL - ZPDECOMPAC(PDEST,PFONT,120);                         %
+%:                                                                     %
+%:   LINGUAGENS = ALGOL,COBOL                                          %
+%:   PARA USO                                                          %
+%:                                                                     %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+EBCDIC ARRAY DDESTX,FFONTX[0];
+INTEGER  ESPACO;
+BEGIN
+ARRAY DDEST[0]=DDESTX[*];
+ARRAY FFONT[0]=FFONTX[*];
+POINTER DEST,FONT;
+REAL SOBRA,ANDOU,REPEAT;
+INTEGER TAM;
+DEFINE MARCA = 48"FA" #;
+TAM:=ESPACO;
+DEST:=POINTER(DDEST);
+FONT:=POINTER(FFONT);
+DO BEGIN
+     REPLACE DEST:DEST BY FONT:FONT FOR SOBRA:TAM WHILE NEQ MARCA;
+     ANDOU:=TAM-SOBRA;
+     IF SOBRA ^= 0 THEN BEGIN
+          REPEAT:=REAL(FONT+2,1)&REAL(FONT+2,1)[15:7:8];
+          REPEAT:=REPEAT&REPEAT[31:15:16]&REPEAT[47:15:16];
+          REPLACE DEST:DEST BY REPEAT FOR REAL(FONT+1,1);
+          ANDOU:=*+3;
+          FONT:=FONT+3;
+          END;
+     END UNTIL (TAM:=*-ANDOU) = 0;
+END ZPDECOMPAC;
+$PAGE
+ INTEGER PROCEDURE ZPESBIN(TAB,INICIO,FINAL,X);
+%% Z P E S B I N %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:   OBJETIVO : FAZER PESQUISA BINARIA EM UM ARRAY.                    %
+%:   PARAMETROS :                                                      %
+%:                                                                     %
+%:        TAB - TABELA A SER USADA NA PESQ.                            %
+%:              ARRAY REAL EM ALGOL, 01 COMP EM COBOL.                 %
+%:                                                                     %
+%:        INICIO - PALAVRA EM QUE DEVE INICIAR A PESQ. 1 => PAL. ZERO  %
+%:                                                                     %
+%:        FINAL  - PALAVRA EM QUE DEVE TERM. A PESQ.                   %
+%:                 OS SUBSCRITOS SAO APROPRIADOS P/ USO EM COBOL.      %
+%:                                                                     %
+%:        X      - VALOR A SER PROCURADO                               %
+%:                                                                     %
+%:        INDEX - INDICE DO ELEMENTO ENCONTRADO DSEFOR                 %
+%:                 ENCONTRADO(POR IGUAL) OU INDICE DO MENOR ELEMENTO   %
+%:                 MAIOR QUE X SE NAO ENCONTRADO ELEMENTO IGUAL.       %
+%:                                                                     %
+%:   CHAMADA :                                                         %
+%:                                                                     %
+%:        COBOL - CALL ZPESBIN USING TAB INIC FIM ARG INDICE.          %
+%:        ALGOL - ZPESBIN(TAB,INIC,FIM,ARG,INDICE);                    %
+%:                                                                     %
+%:   RESULTADO : O VALOR DO INDICE E RETORNADO EM INDEX                %
+%:                                                                     %
+%:                                                                     %
+%:   ASSUME : A TABELA DEVE ESTAR CLASSIFICADA EM ORDEM ASCENDENTE     %
+%:                                                                     %
+%:   LINGUAGEM : COBOL                                                 %
+%:   PARA USO    ALGOL                                                 %
+%:                                                                     %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+INTEGER INICIO,FINAL,X;
+ARRAY TAB[0];
+BEGIN
+
+REAL LINF,LSUP, INDEX;
+BOOLEAN FIM;
+LINF:=INICIO-1;
+LSUP:=FINAL-1;
+DO BEGIN
+     INDEX:=(LINF+LSUP).[38:38];                         % ACHA O MEIO
+     IF LSUP < LINF THEN BEGIN                           % ACABOU E NAO
+          INDEX:=*+1;                                    %  ENCONTROU
+          FIM:=TRUE;
+          END ELSE                                       %   DESPREZA
+          IF X < TAB[INDEX] THEN LSUP:=INDEX-1 ELSE      % PARTE DE CIMA
+               IF X > TAB[INDEX] THEN LINF:=INDEX+1 ELSE %   DE BAIXO
+                    FIM:=TRUE;                           %     ACHOU
+     END UNTIL FIM;
+ZPESBIN:= INDEX+1;    % ADAPTA P/ COBOL O SUBSCRITO
+END ZPESBIN;
+$PAGE
+INTEGER PROCEDURE ZPMSK(ETABLE,INX,PATTERN,MASK); %
+%% Z P M S K %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    PESQUISA UM DETERMINADO DADO EM UMA TABELA(ARRAY). A %
+%:  OPERACAO E FEITA NA TABELA A PARTIR DA PALAVRA ESPECI- %
+%:  FICADA NO SEGUNDO PARAMETRO. ESTA PESQUISA COMECA DA   %
+%:  PALAVRA DO ARRAY(TABELA) ESPECIFICADO, NO SENTIDO DO   %
+%:  FIM PARA O INICIO. O TAMANHO MAXIMO DO DADO A COMPARAR %
+%:  E DE ATE UMA PALAVRA(48 BITS).                         %
+%:                                                         %
+%:  PARAMETRO(S):
+%:                                                         %
+%:     ETABLE     - NOME DA TABELA A SER PESQUISADA.
+%:                  DEFINICAO EM COBOL COMO ITEM DE GRUPO  %
+%:                  (NIVEL 01).                            %
+%:                                                         %
+%:                                                         %
+%:                                                         %
+%:        INX     - NUMERO DA OCORRENCIA(WORDS) NA TABELA. %
+%:                  INICIO DA PESQUISA NO SENTIDO REVERSO. %
+%:                                                         %
+%:    PATTERN     - DADO DO ITEM A PROCURAR NA TABELA.     %
+%:                  PASSADO POR VALOR(REAL).               %
+%:                                                         %
+%:                                                         %
+%:                                                         %
+%:                                                         %
+%:       MASK     - MASCARA PARA SER USADA NA PESQUISA.    %
+%:                  O USO DESTE PARAMETRO DETERMINA O VALOR%
+%:                  REAL MAXIMO DO PARAMETRO A SER PESQUI- %
+%:                  SADO NA TABELA.                        %
+%:                                                         %
+%:  CHAMADA                                                %
+%:  EM COBOL:     - COMPUTE IND = ZPMSK(TABLE,INX,PATTERN, %
+%:                                      MASK).             %
+%:                                                         %
+%:  RESULTADO:    - DEVOLVE UM VALOR REAL EM "IND". CASO   %
+%:                  ENCONTRE IGUALDADE NA TABELA DEVOLVE   %
+%:                  UM VALOR DIFERENTE DE ZERO E INDICA    %
+%:                  O N. DA OCORRENCIA(WORD) NA TABELA.    %
+%:                  CASO NAO ENCONTRE O VALOR E ZERO.      %
+%:                                                         %
+%:  LINGUAGEM                                              %
+%:  PARA USO:     - COBOL                                  %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  INTEGER   INX, PATTERN, MASK; %
+  EBCDIC ARRAY ETABLE [0]; %
+  BEGIN
+    ARRAY TABLE[0]=ETABLE[*];
+    ZPMSK: = ARRAYSEARCH(PATTERN,MASK,TABLE[INX-1]) + 1; %
+  END OF ZPMSK LIB;
+$ PAGE
+PROCEDURE ZPSKIP(ZFILE,ZI);
+$ PAGE
+INTEGER ZI;
+FILE ZFILE;
+BEGIN
+ CASE ZI OF
+  BEGIN
+   1: WRITE(ZFILE[SKIP 1]);
+   2: WRITE(ZFILE[SKIP 2]);
+   3: WRITE(ZFILE[SKIP 3]);
+   4: WRITE(ZFILE[SKIP 4]);
+   5: WRITE(ZFILE[SKIP 5]);
+   6: WRITE(ZFILE[SKIP 6]);
+   7: WRITE(ZFILE[SKIP 7]);
+   8: WRITE(ZFILE[SKIP 8]);
+   9: WRITE(ZFILE[SKIP 9]);
+   10: WRITE(ZFILE[SKIP 10]);
+   11: WRITE(ZFILE[SKIP 11]);
+  ELSE: WRITE(ZFILE,<"*** SKIP INCORRETO 4'",H12,"'">,ZI);
+  END;
+END ZPSKIP;
+$ PAGE
+PROCEDURE ZPSPAC(ZFILE,ZI);
+%% ZPSPAC %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                    %
+%         ECONOMIZAR AREA OCUPADA POR BACKUP.                        %
+%                                                                    %
+%         PARAMETROS :                                               %
+%             1.     :  NOME INTERNO DO ARQUIVO DE IMPRESSAO.        %
+%                       NOME DO ARQUIVO.                             %
+%                                                                    %
+%             2.     :  ESPACEJAMENTO OU CANAL, PASSADO COMO INTEIRO %
+%                       77 BINARY                                    %
+%                                                                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+INTEGER ZI;
+FILE ZFILE;
+BEGIN
+ CASE ZI OF
+  BEGIN
+   1: WRITE(ZFILE);
+   2: WRITE(ZFILE[SPACE 2]);
+   3: WRITE(ZFILE[SPACE 3]);
+   4: WRITE(ZFILE[SPACE 4]);
+   5: WRITE(ZFILE[SPACE 5]);
+   6: WRITE(ZFILE[SPACE 6]);
+   7: WRITE(ZFILE[SPACE 7]);
+   8: WRITE(ZFILE[SPACE 8]);
+   9: WRITE(ZFILE[SPACE 9]);
+  10: WRITE(ZFILE[SPACE 10]);
+  11: WRITE(ZFILE[SKIP 1]);
+  12: WRITE(ZFILE[SKIP 2]);
+  13: WRITE(ZFILE[SKIP 3]);
+  14: WRITE(ZFILE[SKIP 4]);
+  15: WRITE(ZFILE[SKIP 5]);
+  16: WRITE(ZFILE[SKIP 6]);
+  17: WRITE(ZFILE[SKIP 7]);
+  18: WRITE(ZFILE[SKIP 8]);
+  19: WRITE(ZFILE[SKIP 9]);
+  20: WRITE(ZFILE[SKIP 10]);
+  21: WRITE(ZFILE[SKIP 11]);
+  ELSE: WRITE(ZFILE,<"*** SKIP INCORRETO 4'",H12,"'">,ZI);
+  END;
+ END;
+$ PAGE
+PROCEDURE ZPSPACE(ZFILE,ZI);
+$ PAGE
+INTEGER ZI;
+FILE ZFILE;
+ BEGIN
+%
+  WRITE(ZFILE[SPACE ZI]);
+%
+END ZPSPACE;
+$ PAGE
+PROCEDURE ZPWRIT(ZFILE,ZIX,ZZLINHA,ZNX,ZTIPO);
+%% ZPWRIT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                    %
+%             ECONOMIZAR AREA OCUPADA POR BACKUP.                    %
+%                                                                    %
+%         PARAMETROS :                                               %
+%                                                                    %
+%             1.     :  NOME INTERNO DO ARQUIVO DE IMPRESSAO.        %
+%                                                                    %
+%             2.     :  ESPACEJAMENTO OU CANAL, PASSADO COMO INTEIRO %
+%                                                                    %
+%             3.     :  01 DO ARQUIVO DE IMPRESSAO.                  %
+%                                                                    %
+%             4.     :  TAMANHO EM PALAVRAS DA LINHA, PASSADO   COMO %
+%                       INTEIRO.                                     %
+%                                                                    %
+%             5.     :  VARIAVEL INTEIRA.                            %
+%                                                                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+
+INTEGER ZIX,ZNX,ZTIPO;
+FILE ZFILE;
+EBCDIC ARRAY ZZLINHA[0];
+BEGIN
+ARRAY ZLINHA[0]=ZZLINHA[*];
+REAL ZW;
+INTEGER ZI, ZN;
+ZN:=ZNX;
+ZI:=ZIX;
+IF ZN>=0 THEN
+   BEGIN
+       IF ZTIPO=1 THEN
+         ZN:=IF ZN MOD 6 ^= 0  THEN  (ZN DIV 6)+1
+                             ELSE  ZN DIV 6;
+       FOR ZW:=ZN-1 STEP -1 UNTIL 1 DO
+         IF ZLINHA[ZW]^="      "
+            THEN
+              BEGIN
+                 ZN:=(ZW+1)*6;
+                 ZW:=1;         % PARA DESMONTAR O "FOR"
+              END
+   END
+ELSE ZN:=ABS(ZN);
+ CASE ZI OF
+ BEGIN
+   0: WRITE(ZFILE[SPACE 0],ZN,ZLINHA);
+   1: WRITE(ZFILE,ZN,ZLINHA);
+   2: WRITE(ZFILE[SPACE 2],ZN,ZLINHA);
+   3: WRITE(ZFILE[SPACE 3],ZN,ZLINHA);
+   4: WRITE(ZFILE[SPACE 4],ZN,ZLINHA);
+   5: WRITE(ZFILE[SPACE 5],ZN,ZLINHA);
+   6: WRITE(ZFILE[SPACE 6],ZN,ZLINHA);
+   7: WRITE(ZFILE[SPACE 7],ZN,ZLINHA);
+   8: WRITE(ZFILE[SPACE 8],ZN,ZLINHA);
+   9: WRITE(ZFILE[SPACE 9],ZN,ZLINHA);
+  10: WRITE(ZFILE[SPACE 10],ZN,ZLINHA);
+  11: WRITE(ZFILE[SKIP 1] ,ZN,ZLINHA);
+  12: WRITE(ZFILE[SKIP 2] ,ZN,ZLINHA);
+  13: WRITE(ZFILE[SKIP 3] ,ZN,ZLINHA);
+  14: WRITE(ZFILE[SKIP 4] ,ZN,ZLINHA);
+  15: WRITE(ZFILE[SKIP 5] ,ZN,ZLINHA);
+  16: WRITE(ZFILE[SKIP 6] ,ZN,ZLINHA);
+  17: WRITE(ZFILE[SKIP 7] ,ZN,ZLINHA);
+  18: WRITE(ZFILE[SKIP 8] ,ZN,ZLINHA);
+  19: WRITE(ZFILE[SKIP 9] ,ZN,ZLINHA);
+  20: WRITE(ZFILE[SKIP 10] ,ZN,ZLINHA);
+  21: WRITE(ZFILE[SKIP 11] ,ZN,ZLINHA);
+  ELSE: WRITE(ZFILE,<"*** ESPACEJAMENTO INCORRETO 4'",H12,"'">,ZI);
+ END;
+END ZPWRIT;
+$ PAGE
+PROCEDURE ZPWRITA(ZFILE,ZIX,ZZLINHA,ZZLINHAW,ZNX,ZTIPO);
+%---------------------------------------------------
+%% ZPWRITA %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                   %
+%          ECONOMIZAR AREA OCUPADO POR BACKUP.                      %
+%                                                                   %
+%      PARAMETROS:                                                  %
+%                                                                   %
+%          1.    : NOME INTERNO DO ARQUIVO.                         %
+%                                                                   %
+%          2.    : ESPACEJAMENTO OU CANAL PASSADO COMO INTEIRO.     %
+%                                                                   %
+%          3.    : ITEM 01 DISPLAY (LINHA DE IMPRESSAO DO FD)  OU   %
+%                  QUALQUEL DA WORKING-STORAGE, COM TAMANHO IGUAL   %
+%                  A 132 BYTES.                                     %
+%                                                                   %
+%          4.    : ITEM 01 DISPLAY, DEFINIDO  NA  WORKING-STORAGE   %
+%                  COM TAMANHO IGUAL A 132 BYTES, NAO DEVE SER ME-  %
+%                  XIDO, SOMENTE PASSADO PARA A LIB. E UMA AREA DE  %
+%                  TRABALHO PARA A LIB.                             %
+%                                                                   %
+%          5.    : TAMANHO DA LINHA EM BYTES, PASSADO COMO INTEIRO  %
+%                  77 BINARY.                                       %
+%                                                                   %
+%          6.    : INTEIRO, 77 BINARY.                              %
+%                                                                   %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+INTEGER ZIX,ZNX,ZTIPO;
+FILE ZFILE;
+EBCDIC ARRAY ZZLINHA,ZZLINHAW[0];
+BEGIN
+REAL ZW;
+INTEGER ZI, ZN;
+ARRAY ZLINHA[0] =ZZLINHA[*]
+     ,ZLINHAW[0]=ZZLINHAW[*]
+     ;
+REAL PROCEDURE ZCOMPR(PF,PD,TL);
+%----------------------------------
+VALUE PF,PD,TL;
+POINTER PF,PD;
+REAL TL;
+BEGIN
+REAL Q,X;
+WHILE TL>0 DO BEGIN
+   REPLACE PD:PD BY PF:PF FOR TL:(X:=TL) WHILE > 64;
+   ZCOMPR:=*+X-TL;
+   SCAN PF:PF FOR TL:(X:=TL) WHILE = " ";
+   IF TL>0 THEN
+      IF (Q:=X-TL) > 0 THEN
+         THRU ((Q+62) DIV 63) DO BEGIN
+            REPLACE PD:PD BY MIN(Q,63).[7:48] FOR 1;
+            Q:=*-63;
+            ZCOMPR:=*+1;
+            END
+      ELSE
+         REPLACE PD-(OFFSET(PD)) BY PF-(X:=OFFSET(PF))
+                         FOR ZCOMPR:=TL+X+(X:=0);
+   END;
+END ZCOMPR;
+ZI:=ZIX;
+ZN:=ZNX;
+REPLACE ZLINHAW BY 48"CF";
+IF ZTIPO=0 THEN ZTIPO:=ZFILE.UNITS+1;
+ZW:=ZCOMPR(POINTER(ZLINHA),POINTER(ZLINHAW)+1,ZN);
+ZN:=IF ZTIPO=1 THEN ZW DIV 6 + 1
+    ELSE ZW+1;
+ CASE ZI OF
+ BEGIN
+   0: WRITE(ZFILE[SPACE 0],ZN,ZLINHAW);
+   1: WRITE(ZFILE,ZN,ZLINHAW);
+   2: WRITE(ZFILE[SPACE 2],ZN,ZLINHAW);
+   3: WRITE(ZFILE[SPACE 3],ZN,ZLINHAW);
+   4: WRITE(ZFILE[SPACE 4],ZN,ZLINHAW);
+   5: WRITE(ZFILE[SPACE 5],ZN,ZLINHAW);
+   6: WRITE(ZFILE[SPACE 6],ZN,ZLINHAW);
+   7: WRITE(ZFILE[SPACE 7],ZN,ZLINHAW);
+   8: WRITE(ZFILE[SPACE 8],ZN,ZLINHAW);
+   9: WRITE(ZFILE[SPACE 9],ZN,ZLINHAW);
+  10: WRITE(ZFILE[SPACE 10],ZN,ZLINHAW);
+  11: WRITE(ZFILE[SKIP 1] ,ZN,ZLINHAW);
+  12: WRITE(ZFILE[SKIP 2] ,ZN,ZLINHAW);
+  13: WRITE(ZFILE[SKIP 3] ,ZN,ZLINHAW);
+  14: WRITE(ZFILE[SKIP 4] ,ZN,ZLINHAW);
+  15: WRITE(ZFILE[SKIP 5] ,ZN,ZLINHAW);
+  16: WRITE(ZFILE[SKIP 6] ,ZN,ZLINHAW);
+  17: WRITE(ZFILE[SKIP 7] ,ZN,ZLINHAW);
+  18: WRITE(ZFILE[SKIP 8] ,ZN,ZLINHAW);
+  19: WRITE(ZFILE[SKIP 9] ,ZN,ZLINHAW);
+  20: WRITE(ZFILE[SKIP 10] ,ZN,ZLINHAW);
+  21: WRITE(ZFILE[SKIP 11] ,ZN,ZLINHAW);
+  ELSE: WRITE(ZFILE,<"*** ESPACEJAMENTO INCORRETO 4'",H12,"'">,ZI);
+ END;
+END ZPWRITA;
+$ PAGE
+INTEGER PROCEDURE ZQDATA(DATE,DAYS);
+$ PAGE
+INTEGER DATE,DAYS;
+BEGIN
+  REAL D,M,Y,T,DYS;
+  VALUE ARRAY DAYS1(0,31,59,90,120,151,181,212,243,273,304,334)
+             ,DAYS2(3"0101122344556000")
+             ;
+  DEFINE ACUM(X)=30*(X)+DAYS2[0].[47-(X)*3:3] #;
+  DYS:=DATE;
+  D:=DYS DIV 10000;
+  M:=(DYS DIV 100 MOD 100)-1;
+  Y:=(DYS MOD 100)-1;
+  IF (Y.[1:2] = 3) AND (M > 1) THEN T:=1;
+  DYS:=(Y*365+DAYS1[M]+Y.[47:46]+D+T)+DAYS;
+  Y:=4*(DYS DIV 1461)+(T:=DYS MOD 1461) DIV 365;
+  D:=T MOD 365;
+  IF D=0 THEN D:=365+REAL(T=0)
+  ELSE        Y:=*+1;
+  D:=*+REAL(Y.[1:2] NEQ 0 AND D>59);
+  M:=(T:=D DIV 30)+REAL(D>ACUM(T));
+  D:=*-(ACUM(M-1));
+  ZQDATA:=D*10000+M*100+Y;
+END OF ZQDATA;
+$ PAGE
+INTEGER PROCEDURE ZQDATA4(DATE,DAYS);
+INTEGER DATE,DAYS;
+BEGIN
+  REAL D,M,Y,T,DYS;
+  VALUE ARRAY DAYS1(0,31,59,90,120,151,181,212,243,273,304,334)
+             ,DAYS2(3"0101122344556000")
+             ;
+  DEFINE ACUM(X)=30*(X)+DAYS2[0].[47-(X)*3:3] #;
+  DYS:=DATE;
+  D:=DYS DIV 1000000;
+  M:=(DYS DIV 10000 MOD 100)-1;
+  Y:=(DYS MOD 10000)-1;
+  IF (Y.[1:2] = 3) AND (M > 1) THEN T:=1;
+  DYS:=(Y*365+DAYS1[M]+Y.[47:46]+D+T)+DAYS;
+  Y:=4*(DYS DIV 1461)+(T:=DYS MOD 1461) DIV 365;
+  D:=T MOD 365;
+  IF D=0 THEN D:=365+REAL(T=0)
+  ELSE        Y:=*+1;
+  D:=*+REAL(Y.[1:2] NEQ 0 AND D>59);
+  M:=(T:=D DIV 30)+REAL(D>ACUM(T));
+  D:=*-(ACUM(M-1));
+  ZQDATA4:=D*1000000+M*10000+Y;
+END OF ZQDATA4;
+$ PAGE
+INTEGER PROCEDURE ZSETTXT  (ARRIND,POOL);
+%:                -------
+%% Z S E T T X T %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:    ESTE INTRINSECO TEM COMO FINALIDADE PREPARAR UM ARRAY DE INDICES %
+%: ASSOCIADOS A UMA TABELA DE ITENS DE COMPRIMENTO VARIAVEL.           %
+%:    O ARRAY E A TABELA SAO UTILIZADOS PELO INTRINSECO "ZTXT" NA      %
+%: EXTRACAO INDIVIDUAL DE ITENS DA TABELA REFERENCIADOS POR CODIGOS OU %
+%: POSICOES RELATIVAS DENTRO DA TABELA.                                %
+%:                                                                     %
+%: PARAMETROS :                                                        %
+%:     ARRIND - ARRAY QUE SERA PREENCHIDO PELO INTRINSECO.             %
+%:              (EM COBOL, ITEM 01 COMP).                              %
+%:              DEVE TER MAIS UM ELEMENTO QUE O NUMERO DE ITENS DA     %
+%:              TABELA A ELE ASSOCIADO.                                %
+%:              O PRIMEIRO ELEMENTO DO ARRAY DEVE ESTAR ZERADO.        %
+%:              ESTE ARRAY NAO DEVE SER USADO PARA NENHUM OUTRO FIM.   %
+%:                                                                     %
+%:       POOL - TABELA DE ITENS DE COMPRIMENTO VARIAVEL.               %
+%:              (EM COBOL, ITEM DE GRUPO NIVEL 01, DISPLAY(EBCDIC)).   %
+%:              CADA ITEM DA TABELA E COMPOSTO DE UM CODIGO NUMERICO   %
+%:              OPCIONAL E DE UM TEXTO DELIMITADO POR UM CARATER       %
+%:              ESPECIAL PREVIAMENTE ESPECIFICADO.                     %
+%:              O PRIMEIRO BYTE DA TABELA ESPECIFICA O COMPRIMENTO DO  %
+%:              CODIGO NUMERICO ASSOCIADO A CADA ITEM DA TABELA (PODE  %
+%:              TER VALOR ZERO).                                       %
+%:              O SEGUNDO BYTE DA TABELA ESPECIFICA O CARATER ESPECIAL %
+%:              DELIMITADOR DOS ITENS.                                 %
+%:              CADA ITEM PODE SER INDIVIDUALIZADO POR UM CODIGO NUME- %
+%:              RICO DE ATE 9 DIGITOS QUE SERA UTILIZADO COMO CHAVE DE %
+%:              ACESSO. ESTE CODIGO E OPCIONAL, MAS SE USADO, DEVE SER %
+%:              POSITIVO E DECLARADO EM ORDEM ASCENDENTE.              %
+%:              BRANCOS OU NULOS NO INICIO DO CODIGO OU DO TEXTO SAO   %
+%:              DESPREZADOS.                                           %
+%:               EX: "0#JANEIRO#FEVEREIRO#MARCO#ABRIL#" ;              %
+%:                   "2* 01 JANEIRO* 04ABRIL* 07 JULHO* 10 OUTUBRO*" ; %
+%:                                                                     %
+%: RESULTADO  : O RETORNO DE UM VALOR NEGATIVO SIGNIFICA ANORMALIDADE: %
+%:               (-1) - TAMANHO TABELA MENOR QUE MINIMO;               %
+%:               (-2) - COMPRIMENTO CODIGO ESPECIFICADO INCORRETAMENTE;%
+%:               (-3) - ESPECIFICADO DELIMITADOR INVALIDO;             %
+%:               (-4) - NENHUM DELIMITADOR DETETADO;                   %
+%:               (-5) - DETETADO ITEM SEM CODIGO NUMERICO;             %
+%:               (-6) - DETETADO CODIGO NUMERICO FORA DE SEQUENCIA;    %
+%:                                                                     %
+%: OBSERVACOES: O INTRINSECO "ZSETTXT" DEVE NORMALMENTE SER CHAMADO    %
+%:              APENAS UMA VEZ PARA CONSTRUIR (SET) O ARRAY "ARRIND"   %
+%:              (DE PONTEIROS PARA A TABELA).                          %
+%:              DEPOIS DE CONSTRUIDO O ARRAY, O INTRINSECO "ZTXT" SERA %
+%:              CHAMADO PARA CONSULTA.                                 %
+%:              SE QUISERMOS USAR NOVAMENTE O ARRAY "ARRIND", DEVEMOS  %
+%:              ZERAR A PALAVRA ZERO E CHAMAR OUTRA VEZ O INTRINSECO.  %
+%:                                                                     %
+$ PAGE
+                 ARRAY  ARRIND[0];
+          EBCDIC ARRAY POOL  [0];
+BEGIN
+
+TRUTHSET TABNUM   ("0123456789"),
+         TABRUIDO (48"0040"),
+         TABDELIM (NOT(ALPHA OR TABRUIDO));
+REAL   I,J,K,T,V,W,X,CSEQ,TMAX,NUMOC,VALCOD,TAMCOD,DELIMIT;
+LABEL    FIM;
+%
+DEFINE ERRO(X)   = BEGIN ZSETTXT:=-1*X; GO FIM; END #;
+DEFINE SALTRUIDO = IF K>0 THEN
+                   BEGIN
+                   T:=K;
+                   SCAN POOL[I] FOR K:K WHILE IN TABRUIDO;
+                   I:=*+T-K;
+                   END #;
+%
+
+ARRIND[0]:=0;
+K:=SIZE(POOL);
+SALTRUIDO;
+IF K<2 THEN ERRO(1);
+IF POOL[I] IN TABNUM THEN TAMCOD:=INTEGER(POOL[I],1) ELSE ERRO(2);
+I:=*+1;
+IF POOL[I] IN TABDELIM THEN DELIMIT:=REAL(POOL[I],1) ELSE ERRO(3);
+I:=*+1;
+K:=*-2;
+SALTRUIDO;
+V:=I;
+W:=K;
+WHILE W>0 DO
+  BEGIN
+  T:=W;
+  SCAN POOL[V] FOR W:W UNTIL EQL DELIMIT;
+  X:=*+REAL(W>0);
+  W:=*-1;
+  V:=*+T-W;
+  END;
+IF X:=*+1 = 1 THEN ERRO(4)
+ELSE
+IF SIZE(ARRIND) < X THEN RESIZE(ARRIND,X);
+WHILE K>0 DO
+  BEGIN
+  NUMOC:=*+1;
+  VALCOD:=*+1;
+  IF TAMCOD NEQ 0 THEN
+    BEGIN
+    SCAN POOL[I] FOR T:TAMCOD WHILE IN TABNUM;
+    IF T:=TAMCOD-T = 0  THEN ERRO(5);
+    IF VALCOD:=INTEGER(POOL[I],T) > CSEQ THEN CSEQ:=VALCOD ELSE ERRO(6);
+    K:=*-T;
+    I:=*+T;
+    SALTRUIDO;
+    END;
+  ARRIND[NUMOC]:= 0 & VALCOD [47:32] & I[15:16];
+  J:=K;
+  SCAN POOL[I] FOR K:K UNTIL EQL DELIMIT;
+  IF (J-K) > TMAX THEN TMAX:=J-K;       % GUARD TAMANHO MAIOR ITEM
+  K:=*-1;
+  I:=*+J-K;
+  SALTRUIDO;
+  END;    % OF K>0
+ARRIND[0]:= 0 & TMAX[47:16]
+               & DELIMIT[31:8]
+              & TAMCOD[23:4]
+              &(IF VALCOD=NUMOC THEN 1
+                 ELSE IF NUMOC<50 THEN 2 ELSE 3) [19:4]
+              & NUMOC[15:16];
+ZSETTXT:=NUMOC;
+FIM:
+END OF ZSETTXT;
+$PAGE
+INTEGER PROCEDURE ZSIZE(AA);
+% ZSIZE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                    %
+%        USAR A FUNCAO SIZE DO ALGOL, DEVOLVE O TAMANHO DA LINHA. O  %
+%    VALOR RETORNADO, EXPRESSA O NUMERO DE PALAVRAS NECESSARIAS PA-  %
+%    RA CONTER O DADO.                                               %
+%                                                                    %
+%        PARAMETRO :                                                 %
+%            1.    - LINHA DO ARRAY. ITEM O1 DISPLAY.                %
+%                                                                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+EBCDIC ARRAY AA[0];
+BEGIN
+ARRAY A[0]=AA[*];
+ZSIZE:=SIZE(A);
+END ZSIZE;
+$ PAGE
+INTEGER PROCEDURE ZSPACER(F,RECORDSX); %
+%:S P A C E R %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESPACEJA REGISTRO(S) DE UM DETERMINADO ARQUIVO.      %
+%:                                                         %
+%:  PARAMETRO(S):                                          %
+%:                                                         %
+%:          F     - NOME DO ARQUIVO (FILE IDENTIFIER (FD)).%
+%:                                                         %
+%:    RECORDS     - N. DE REGISTROS A SEREM ESPACEJADOS    %
+%:                  E A DIRECAO DO ESPACEJAMENTO. SE POSI  %
+%:                  TIVO OS REGISTROS SERAO ESPACEJADOS NA %
+%:                  DIRECAO FORWARD (DO INICIO PARA O FIM);%
+%:                  SE NEGATIVO A DIRECAO SERA REVERSA(DO  %
+%:                  FIM PARA O INICIO).                    %
+%:                                                         %
+%:  CHAMADA                                                %
+%:  EM COBOL:     - COMPUTE RESULT = ZSPACER(FITA1 , 30).   %
+%:                                                         %
+%:                                                         %
+%:  RESULTADO:    - DEVOLVE UM VALOR REAL NA VARIAVEL      %
+%:                  "RESULT". CASO ENCONTRE FIM DE ARQUIVO %
+%:                  O VALOR SERA  1  CASO CONTRARIO O .    %
+%:                                                         %
+%:  LINGUAGEM                                              %
+%:  PARA USO :    COBOL.                                   %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:
+$ PAGE
+  INTEGER RECORDSX; %
+  FILE F; %
+BEGIN %
+INTEGER RECORDS;
+LABEL EOF; %
+RECORDS:=RECORDSX;
+SPACE(F,RECORDS) [EOF]; %
+IF FALSE THEN %
+ EOF : %
+%---
+  ZSPACER:=1; %
+END OF INTRN SPACE; %
+$ PAGE
+INTEGER PROCEDURE ZSUBS(A,B,MAXIMOX,POSAX,POSBX,CHARX); %
+%% Z S U B S %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE INTRINSECO TEM A FINALIDADE DE MOVER UM CAMPO   %
+%:  PARA OUTRO ATE ENCONTRAR UM CARACTER DELIMITADOR OU O  %
+%:  N. MAXIMO DE CARACTERES QUE PODERAO SER MOVIDOS.       %
+%:
+%:  PARAMETROS(S):                                         %
+%:                                                         %
+%:          A     - CAMPO DE ORIGEM A SER MOVIDO. DEFINIDO %
+%:                  EM COBOL COMO ITEM DE GRUPO NIVEL 01   %
+%:                  DISPLAY(EBCDIC).                       %
+%:                                                         %
+%:          B     - CAMPO DE DESTINO. DEFINICAO IGUAL AO   %
+%:                  PRIMEIRO.                              %
+%:                                                         %
+%:     MAXIMO     - NUMERO MAXIMO DE CARACTERES QUE PODEM  %
+%:                  SER MOVIDOS.DEFINIDO COMO REAL.        %
+%:                  EX: 77 MAXIMO  PIC 99 COMP-1 VALUE ... %
+%:                                                         %
+%:       POSA     - N. DA POSICAO DO CAMPO DE ORIGEM A SER %
+%:                  TRANSFERIDO. DEFINIDO COMO REAL.       %
+%:                                                         %
+%:       POSB     - N. DA POSICAO DO CAMPO DE DESTINO.     %
+%:                  DEFINIDO COMO REAL.                    %
+%:                                                         %
+%:       CHAR     - CARACTER DELIMITADOR DO MOVIMENTO      %
+%:                  PASSADO POR VALOR.                     %
+%:                                                         %
+%:  CHAMADA:      - COBOL - COMPUTE NCHA = ZSUBS(A,B,MAX,   %
+%:                                         POSA,POSB,CHA). %
+%:                  ** OS PARAM. 3 4 5 E 6 PODEM SER       %
+%:                     LITERAIS NUMERICOS.                 %
+%:                                                         %
+%:  RESULTADO:    EM "NCHA" ESTA PROCEDURE DEVOLVE UM VALOR%
+%:                REAL QUE REPRESENTA O N.DE CARACTERES    %
+%:                TRANSFERIDOS.                            %
+%:                                                         %
+%:  LINGUAGEM                                              %
+%:  PARA  USO:    COBOL.                                   %
+%:                FORTRAN                                  %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:
+$ PAGE
+  INTEGER  MAXIMOX, POSAX, POSBX, CHARX; %
+  EBCDIC ARRAY A, B [0]; %
+BEGIN %
+REAL T; %
+INTEGER  MAXIMO, POSA, POSB, CHAR; %
+MAXIMO:=MAXIMOX; %
+POSA:=POSAX-1; %
+POSB:=POSBX-1; %
+CHAR:=CHARX; %
+REPLACE B[POSB] BY A[POSA] FOR T:MAXIMO UNTIL EQL CHAR.[7:8]; %
+ZSUBS:=MAXIMO-T; %
+END OF INTRN ZSUBS; %
+$PAGE
+PROCEDURE ZTLJOUR (DATA,SEC);
+%% Z T L J O U R %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER DATA (DDMMAA) EM DIAS DO SECULO  %
+%:              TESTANDO A VALIDADE DA DATA                %
+%:                                                         %
+%:  PARAMETRO:                                             %
+%:                                                         %
+%:          DATA   - CAMPO A SER CONVERTIDO.               %
+%:                   EM COBOL, USAGE DISPLAY "77" OU "01"  %
+%:          SEC    - DIAS DO SECULO                        %
+%:                   EM COBOL, USAGE DISPLAY "77" OU "01"  %
+%:                                                         %
+%:  CHAMADA: CALL "ZTLJOUR IN LIB/INTRINSECOS" USING DATA  %
+%:                                                   SEC   %
+%:                                                         %
+%:  RESP:     1  - A DATA ESTA CORRETA E FOI CONVERTIDA    %
+%:            0  - A DATA ESTA INVALIDA                    %
+%:                                                         %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY DATA[0];
+  INTEGER SEC;
+BEGIN %
+POINTER P;
+DEFINE LIM (X) = DATES[X MOD 13].[T:6] # %
+      ,ACUM (X) = DATES[X].[T-6:9] #; %
+REAL D, M, A, T; %
+TRUTHSET NUMBERS("0123456789"); %
+VALUE ARRAY DATES( %
+    0, 3"3703737037", 3"3407335074", 3"3713237133" %
+     , 3"3617036171", 3"3722737230", 3"3626536266" %
+     , 3"3732437325", 3"3736337364", 3"3642136422" %
+     , 3"3746037461", 3"3651636517", 3"3755537556" ); %
+P:= DATA;
+SEC:= 0;
+SCAN P FOR T:6 WHILE IN NUMBERS; %
+IF T EQL 0 THEN %
+  BEGIN %
+  D := INTEGER(P,2); %
+  M := INTEGER(P+2,2); %
+  T := IF (A:=INTEGER(P+4,2)) MOD 4 EQL 0 THEN 14 ELSE 29; %
+  IF NOT(A = 0 OR M = 0 OR M > 12 OR D = 0 OR D > LIM(M)) THEN %
+     SEC:= (A-1)*365 + ACUM(M-1) + D + (A-1) DIV 4;
+  END; %
+END OF ZTLJOUR LIB; %
+$ PAGE
+PROCEDURE ZTLJOUR4 (DATA,SEC);
+%% Z T L J O U R 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:  FINALIDADE: CONVERTER DATA (DDMMAAAA) EM DIAS A PARTIR  %
+%:              DO SECULO XX TESTANDO A VALIDADE DA DATA    %
+%:                                                          %
+%:  PARAMETRO:                                              %
+%:                                                          %
+%:          DATA   - CAMPO A SER CONVERTIDO.                %
+%:                   EM COBOL, USAGE DISPLAY "77" OU "01"   %
+%:          SEC    - DIAS DO SECULO                         %
+%:                   EM COBOL, USAGE DISPLAY "77" OU "01"   %
+%:                                                          %
+%:  CHAMADA: CALL "ZTLJOUR4 IN LIB/INTRINSECOS" USING DATA  %
+%:                                                    SEC   %
+%:                                                          %
+%:  RESP:     1  - A DATA ESTA CORRETA E FOI CONVERTIDA     %
+%:            0  - A DATA ESTA INVALIDA                     %
+%:                                                          %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY DATA[0];
+  INTEGER SEC;
+BEGIN %
+POINTER P;
+DEFINE LIM (X) = DATES[X MOD 13].[T:6] # %
+      ,ACUM (X) = DATES[X].[T-6:9] #; %
+REAL D, M, A, T; %
+TRUTHSET NUMBERS("0123456789"); %
+VALUE ARRAY DATES( %
+    0, 3"3703737037", 3"3407335074", 3"3713237133" %
+     , 3"3617036171", 3"3722737230", 3"3626536266" %
+     , 3"3732437325", 3"3736337364", 3"3642136422" %
+     , 3"3746037461", 3"3651636517", 3"3755537556" ); %
+P:= DATA;
+SEC:= 0;
+SCAN P FOR T:8 WHILE IN NUMBERS; %
+IF T EQL 0 THEN %
+  BEGIN %
+  D := INTEGER(P,2); %
+  M := INTEGER(P+2,2); %
+  T := IF (A:=INTEGER(P+4,4)) MOD 4 EQL 0 THEN 14 ELSE 29; %
+  IF NOT(A = 0 OR M = 0 OR M > 12 OR D = 0 OR D > LIM(M)) THEN %
+     SEC:= ((A-1)*365 + ACUM(M-1) + D + (A-1) DIV 4) - 693975 ;
+  END; %
+END OF ZTLJOUR4 LIB; %
+$ PAGE
+INTEGER PROCEDURE ZTXT (ARRIND, POOL, CODX, PPDEST);
+%:                ----
+%% Z T X T %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%:    ESTE INTRINSECO TEM POR FINALIDADE TRATAR TABELAS DE ITENS DE    %
+%: COMPRIMENTO VARIAVEL. OS ITENS PODEM SER REFERENCIADOS POR UM CODIGO%
+%: NUMERICO DECLARADO OU POR SUA POSICAO RELATIVA DENTRO DA TABELA.    %
+%:    DESTA MANEIRA TABELAS PODEM SER MONTADAS SEM QUE TODOS OS ITENS  %
+%: SEJAM DO MESMO TAMANHO E, DE IMEDIATO, DUAS VANTAGENS SE DESTACAM:  %
+%:      1 - ECONOMIA DE ESPACO;                                        %
+%:      2 - MAIOR LIBERDADE DE ESCRITURACAO.                           %
+%:                                                                     %
+%:    UM ARRAY DE INDICES DOS ELEMENTOS DA TABELA PRECISA SER PREVIAMEN%
+%: TE PREPARADO PELO INTRINSECO "ZSETTXT" (USADO APENAS UMA VEZ).      %
+%: PARAMETROS:                                                         %
+%:    ARRIND - ARRAY QUE SERA PREENCHIDO PELO INTRINSECO "ZSETTXT".    %
+%:                                                                     %
+%:    POOL   - TABELA DE ITENS DE COMPRIMENTO VARIAVEL.                %
+%:                                                                     %
+%:    COD    - CODIGO DO ITEM DESEJADO OU, SUA POSICAO RELATIVA DENTRO %
+%:             DA TABELA.                                              %
+%:              (EM COBOL, 77 COMP, 77 COMP-1 OU LITERAL NUMERICO).    %
+%:                                                                     %
+%:    PDEST  - POINTER ONDE SERA COLOCADO O TEXTO.                     %
+%:              (EM COBOL, ITEM DISPLAY).                              %
+%:                                                                     %
+%:                                                                     %
+%: RESULTADO:  O RETORNO DE UM VALOR NEGATIVO SIGNIFICA ANORMALIDADE:  %
+%:             (-1) - ARRAY DE INDICES NAO INICIALIZADO;               %
+%:             (-2) - PARAMETRO "COD" NAO POSITIVO;                    %
+%:             (-3) - ITEM NAO LOCALIZADO NA TABELA.                   %
+%:                                                                     %
+%: OBSERVACOES:                                                        %
+%:    1) A AREA PDEST (APONTADA POR PDEST) DEVE TER COMPRIMENTO IGUAL  %
+%:       OU MAIOR AO DO MAIOR TEXTO NA TABELA.                         %
+%:                                                                     %
+%:    2) A AREA PDEST NAO SERA LIMPA PELO MOVIMENTO DO TEXTO.          %
+%:                                                                     %
+$ PAGE
+
+                      ARRAY ARRIND [0];
+               EBCDIC ARRAY PPDEST, POOL [0];
+               INTEGER CODX;
+
+BEGIN
+POINTER    PDEST;
+REAL T,V,W,X,Y;
+INTEGER COD;
+
+DEFINE MAXOC = T.[15:16] #,
+       TIPOPESQ = T.[19:4] #,
+       SIZECOD  = T.[23:4] #,
+       CHARFIM  = T.[31:8] #,
+       TMAX     = T.[47:16] #,
+       PESQDIR  = TIPOPESQ = 1 #,
+       PESQLIN  = TIPOPESQ = 2 #,
+       PESQBIN  = TIPOPESQ = 3 #;
+PDEST:=PPDEST;
+COD:=CODX;
+T:=ARRIND[0];
+IF T=0 THEN ZTXT:=-1
+ELSE
+IF COD<1 THEN ZTXT:=-2
+ELSE
+BEGIN
+IF PESQDIR THEN
+  IF COD LEQ MAXOC THEN
+    W:=ARRIND[COD].[15:16]
+  ELSE
+ELSE
+IF PESQLIN THEN
+  IF V:=ARRAYSEARCH(0&COD[47:32],40"FFFFFFFF",ARRIND[MAXOC]) > 0
+    THEN W:=ARRIND[V].[15:16]
+  ELSE
+ELSE
+IF PESQBIN THEN
+  BEGIN
+  V:=1;
+  X:=MAXOC;
+  DO BEGIN
+     Y:=(V+X).[38:38];
+     IF V>X THEN W:=-1
+     ELSE
+     IF COD < ARRIND[Y].[47:32] THEN X:=Y-1
+     ELSE
+     IF COD > ARRIND[Y].[47:32] THEN V:=Y+1
+     ELSE
+     W:=ARRIND[Y].[15:16];
+     END UNTIL W NEQ 0;
+  END;
+%
+IF W>0 THEN REPLACE PDEST BY POOL[W] FOR TMAX UNTIL EQL CHARFIM
+       ELSE ZTXT:=-3;
+END;
+%
+END OF ZTXT;
+$ PAGE
+PROCEDURE ZVERSAO (VERSAO,CICLO);
+%% Z V E R S A O %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%     TEM POR FINALIDADE DEVOLVER A VERSAO E O CICLO DO  %
+%% PROGRAMA QUE ACESSAR ESTA LIBRARY.                     %
+%% CHAMADA: CALL "ZVERSAO IN DTP/L1" USING VERSAO CICLO   %
+%%                                                        %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+INTEGER VERSAO, CICLO;
+BEGIN
+EBCDIC ARRAY NOMEPROG[0:100];
+FILE F1 (KIND=DISK,FILETYPE=7,MYUSE=IN);
+REPLACE NOMEPROG  BY MYSELF.NAME;
+REPLACE F1.TITLE BY NOMEPROG;
+F1.OPEN:=TRUE;
+VERSAO:=F1.VERSION;
+CICLO:=F1.CYCLE;
+END;
+$ PAGE
+PROCEDURE ZWRITE(SPACSX,BUFF); %
+%% Z W R I T E %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:    ESTE INTRINSECO TEM A FINALIDADE DE IMPRIMIR UMA     %
+%:  LINHA NO SUMARIO DO JOB ATRAVES DA TASKFILE. O USUARIO %
+%:  NAO DEFINIRA NENHUM ARQUIVO PARA ESTA OPERACAO. ESTA   %
+%:  PROCEDURE PODERA SER CHAMADA ATRAVES DA INSTRUCAO CALL.%
+%:                                                         %
+%:  PARAMETROS:                                            %
+%:                                                         %
+%:       SPACS     - ESTE SERVE TANTO PARA ESPACEJAR OU    %
+%:                   SKIPAR.                               %
+%:                   0 A 9   ESPACO.                       %
+%:                      10   SKIP (CANAL 1).               %
+%:                                                         %
+%:        BUFF     - ESTE PARAMETRO DEVE SER O ITEM DE     %
+%:                   GRUPO O QUAL SERA IMPRESSO  NA        %
+%:                   TASKFILE.                             %
+%:  CHAMADA:       COBOL -  CALL ZWRITE(1, BUFF).          %
+%:                                                         %
+%:  LINGUAGEM                                              %
+%:  PARA USO:      COBOL                                   %
+%:%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:
+$ PAGE
+INTEGER SPACSX; %
+  EBCDIC ARRAY BUFF [0]; %
+BEGIN %
+INTEGER SPACS;
+EBCDIC ARRAY SCRATCH [0:131] ;
+REAL TIME7 , ANO , MES , DIA , HOR , MIN , SEG , CONTRES ;
+SPACS:=SPACSX; %
+TIME7:=TIME(7) ;
+ANO:=TIME7.[47:12] ;
+MES:=TIME7.[35:06] ;
+DIA:=TIME7.[29:06] ;
+HOR:=TIME7.[23:06] ;
+MIN:=TIME7.[17:06] ;
+SEG:=TIME7.[11:06] ;
+REPLACE SCRATCH BY " " FOR 132 ;
+REPLACE SCRATCH BY DIA FOR 2 DIGITS , "/"
+                 , MES FOR 2 DIGITS , "/"
+                 , ANO FOR 4 DIGITS , " "
+                 , HOR FOR 2 DIGITS , ":"
+                 , MIN FOR 2 DIGITS , ":"
+                 , SEG FOR 2 DIGITS , " "
+                 , BUFF FOR CONTRES:112 UNTIL EQL 48 "00" ;
+IF SPACS GTR 9 THEN %
+  WRITE(MYSELF.TASKFILE[SKIP 1]); %
+WRITE(MYSELF.TASKFILE[SPACE SPACS MOD 10],132,SCRATCH); %
+END OF ZWRITE LIB ; %
+%
+INTEGER PROCEDURE ZZCGC(CGC);
+%% Z Z C G C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : CONFERIR DIGITOS DE CONTROLE DO CGC                    %
+%:                                                                     %
+%: PARAMETROS :  CGC - CAMPO SUBMETIDO AO TESTE.                       %
+%:                     EM COBOL, USAGE DISPLAY "77" OU "01".           %
+%:                                                                     %
+%:                                                                     %
+%: RESP:         1   - OS DIGITOS ESTAO CERTOS                         %
+%:               0   - OS DIGITOS ESTAO ERRADOS OU O CAMPO CONTEM      %
+%:                     ALGUM CARATER NAO NUMERICO                      %
+%:                                                                     %
+%: CHAMADA: CALL "ZZCGC IN LIB/INTRINSECOS" USING CGC GIVING RESP.     %
+%:                                                                     %
+%: OBSERVACOES: E ASSUMIDO QUE O CAMPO TENHA 14 POSICOES,QUALQUER      %
+%               VALOR ERRADO PODE TER CONSEQUENCIAS IMPREVISIVEIS.     %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY CGC[0];
+BEGIN
+  POINTER PCGC;
+  DEFINE A = INTEGER(PCGC+12,1) #
+        ,B = INTEGER(PCGC+13,1) #
+        ,C = INTEGER(PCGC+ 7,1) #;
+  POINTER PX;
+  REAL T;
+  VALUE ARRAY NUMERIC(4"FFC00000",0,0,0,0,0,0,0,0,0,0,0,0,0,0,4"FFC0");
+%---------------------------------------------------------------------
+  REAL PROCEDURE DC(SZ);
+  VALUE SZ;
+  REAL SZ;
+  BEGIN
+    REAL S,P;
+    PX:=PCGC;
+    P:=SZ.[2:3] + 2;
+    THRU SZ DO S:=*+INTEGER(PX:PX,1)*(P:=*-(IF P=2 THEN -7 ELSE 1));
+    DC:=IF (S:=* MOD 11).[3:3]=0 THEN 0 ELSE (11-S);
+  END OF DC ;
+%---------------------------------------------------------------------
+  REAL PROCEDURE DR(SZ);   %
+  VALUE SZ;                %   Calculo do DV da Raiz no CGC
+  REAL SZ;                 %   ----------------------------
+  BEGIN                    %       ( Oitavo digito )
+    REAL S,P,N;
+    PX:=PCGC;
+    THRU SZ DO S:=*+((N:=(INTEGER(PX:PX,1)*(P:=(IF P=2 THEN 1 ELSE 2))))
+                      DIV 10) + (N MOD 10);
+    DR:=(10-(S MOD 10)) MOD 10;
+  END OF DR ;
+%---------------------------------------------------------------------
+  PCGC:= CGC;
+  SCAN PCGC FOR T:14 WHILE IN NUMERIC[SIZE(PCGC) & 0 [2:3]];
+  ZZCGC:= REAL((T=0) AND (C=DR(7)) AND (A=DC(12)) AND (B=DC(13)));
+END OF ZZCGC LIB;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ESTA PROCEDURE TEM OBJETIVO SETAR O ATRIBUTO INPUTTABLE DE 1 ARQUIVO %
+% TEM COMO PARAMETRO 1 ARQUIVO E UM 01 EM COBOL74 E DEVOLVE 0 CASO OK  %
+% OU 1 CASO ERRO. COMO CONTEUDO DO 01 DEVE SER PASSADO A TABELA A SER  %
+% UTILIZADA PARA A TRADUCAO : EBCDICTOASCII  OU ASCIITOEBCDIC          %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+INTEGER PROCEDURE ZINPUTTABLE(ARQUIVO,TABELA);
+FILE ARQUIVO;
+EBCDIC ARRAY TABELA[0];
+BEGIN
+ARQUIVO.TRANSLATE:= VALUE(FORCESOFT);
+IF TABELA[0] = "ASCIITOEBCDIC" THEN
+   ARQUIVO.INPUTTABLE:= ASCIITOEBCDIC
+ELSE
+   IF TABELA[0] = "EBCDICTOASCII" THEN
+      ARQUIVO.INPUTTABLE:= EBCDICTOASCII
+   ELSE
+      ZINPUTTABLE:= 1;
+END OF ZINPUTTABLE;
+INTEGER PROCEDURE ZOUTPUTTABLE(ARQUIVO,TABELA);
+FILE ARQUIVO;
+EBCDIC ARRAY TABELA[0];
+BEGIN
+ARQUIVO.TRANSLATE:= VALUE(FORCESOFT);
+IF TABELA[0] = "ASCIITOEBCDIC" THEN
+   ARQUIVO.OUTPUTTABLE:= ASCIITOEBCDIC
+ELSE
+   IF TABELA[0] = "EBCDICTOASCII" THEN
+      ARQUIVO.OUTPUTTABLE:= EBCDICTOASCII
+   ELSE
+      ZOUTPUTTABLE:= 1;
+END OF ZOUTPUTTABLE;
+INTEGER PROCEDURE ZCGCDV (CGC);
+%% Z C G C D V%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : GERAR DIGITOS DE CONTROLE DO CGC                       %
+%:                                                                     %
+%: PARAMETROS :  CGC - CAMPO CONTENDO O CGC PARA O QUAL DESEJA-SE      %
+%:                     OS DIGITOS DE CONTROLE.                         %
+%:                     EM COBOL, USAGE DISPLAY "77"OU "01".            %
+%:                                                                     %
+%: RESP:         1   - OS DIGITOS FORAM GERADOS COM SUCESSO            %
+%:               0   - CAMPO CONTEM ALGUM CARACTER NAO NUMERICO        %
+%:                                                                     %
+%:                                                                     %
+%: CHAMADA: CALL "ZCGCDV IN DTP/L1" USING CGC GIVING RESP.             %
+%:                                                                     %
+%: OBSERVACOES: E ASSUMIDO QUE O CAMPO TENHA 14 POSICOES,QUALQUER      %
+%               VALOR ERRADO PODE TER CONSEQUENCIAS IMPREVISIVEIS      %
+%:              O CGC DEVE  ESTAR  CONTIDO  NAS 12  POSICOES MAIS      %
+%:              SIGNIFICATIVAS DO CAMPO. OS DIGITOS  DE  CONTROLE      %
+%:              SERAO COLOCADOS NAS DUAS ULTIMAS POSICOES.             %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY CGC[0];
+BEGIN
+  POINTER PCGCDV;
+  POINTER PX;
+  REAL T;
+  VALUE ARRAY NUMERIC(4"FFC00000",0,0,0,0,0,0,0,0,0,0,0,0,0,0,4"FFC0");
+%---------------------------------------------------------------------
+$PAGE
+  REAL PROCEDURE DC(SZ);
+  VALUE SZ;
+  REAL SZ;
+  BEGIN
+    REAL S,P;
+    PX:=PCGCDV;
+    P:=SZ.[2:3] + 2;
+    THRU SZ DO S:=*+INTEGER(PX:PX,1)*(P:=*-(IF P=2 THEN -7 ELSE 1));
+    DC:=IF (S:=* MOD 11).[3:3]=0 THEN 0 ELSE (11-S);
+$PAGE
+  END OF DC PROCEDURE;
+%---------------------------------------------------------------------
+  PCGCDV:= CGC;
+  SCAN PCGCDV FOR T:12 WHILE IN NUMERIC[SIZE(PCGCDV) & 0 [2:3]];
+  IF ZCGCDV:= REAL(T=0) EQL 1 THEN
+     BEGIN
+     REPLACE PCGCDV + 12 BY DC (12) FOR 1 DIGITS;
+     REPLACE PCGCDV + 13 BY DC (13) FOR 1 DIGITS;
+     END;
+END OF ZCGCDV LIB;
+$PAGE
+INTEGER PROCEDURE ZCEIDV(MATRICULA);
+%% Z C E I D V%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+% FINALIDADDE : GERAR DIGITOS VERIFICADORES PARA MATRICULAS CEI        %
+%                                                                      %
+% PARAMETROS  : CEI - CAMPO CONTENDO A MANTRICULA COM 12 POS.          %
+%                     EM COBOL/COBOBL74, USAGE DISPLAY "77" OU "01".   %
+%                                                                      %
+% RESP:         1   - O DIGITO FOI GERADO.                             %
+%               0   - O DIGITO NAO FOI GERADO.                         %
+%              -1   - O ESTADO (POS 1 E 2) E < QUE 1 OU > 29.          %
+%              -2   - A ATIVIDADE E DIF. DE 0, 6, 7, 8, 9.             %
+%                                                                      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+EBCDIC ARRAY MATRICULA [0];
+BEGIN
+INTEGER I
+       ,SOMA
+       ;
+LABEL END_OF_ZCEIDV;
+VALUE ARRAY PESOS (7,4,1,8,5,2,1,6,3,7,4);
+%
+IF I:= INTEGER(MATRICULA[0],2) < 01 OR
+   I > 29 THEN
+   BEGIN
+   ZCEIDV:= -1; % ESTADO ERRADO
+   GO END_OF_ZCEIDV;
+   END;
+IF I:= INTEGER(MATRICULA[10],1) NEQ 0 AND
+   I NEQ 6 AND
+   I NEQ 7 AND
+   I NEQ 8 AND
+   I NEQ 9 THEN
+   BEGIN
+   ZCEIDV:= -2; % ATIVIDADE ERRADA
+   GO END_OF_ZCEIDV;
+   END;
+%
+FOR I:= 0 STEP 1 UNTIL 10 DO
+  SOMA:= SOMA + (INTEGER(MATRICULA[I],1) *
+                 PESOS[I]);
+%
+SOMA := (10 - ((SOMA MOD 10 + (SOMA DIV 10 MOD 10))  MOD 10)) MOD 10;
+%
+REPLACE MATRICULA[11] BY SOMA FOR 1 DIGITS;
+ZCEIDV:=1; % DV GERADO
+END_OF_ZCEIDV:
+END OF ZCEIDV LIB;
+$ PAGE
+INTEGER PROCEDURE ZCPFDV (CPF);
+%% Z C P F D V%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%:                                                                     %
+%: FINALIDADE : GERAR DIGITOS DE CONTROLE DO CPF.                      %
+%:                                                                     %
+%: PARAMETROS :  CPF - CAMPO SUBMETIDO A GERACAO                       %
+%:                     EM COBOL, USAGE DISPLAY "77" OU "01"            %
+%:                                                                     %
+%:                                                                     %
+%: RESP:          1  - OS DIGITOS FORAM GERADOS                        %
+%:                0  - OS DIGITOS NAO FORAM GERADOS, UMA DAS           %
+%:                     POSSIBILIDADES EH ALGUM CARATER NAO NUMERICO    %
+%:                                                                     %
+%: CHAMADA: CALL "ZCPFDV IN LIB/INTRINSECOS" USING CPF GIVING RESP     %
+%:                                                                     %
+%: OBSERVACOES: E ASSUMIDO QUE O CAMPO TENHA 11 POSICOES,QUALQUER      %
+%               VALOR ERRADO PODE TER CONSEQUENCIAS IMPREVISIVEIS.     %
+%:                                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+$ PAGE
+  EBCDIC ARRAY CPF[0];
+BEGIN
+  POINTER PCPF;
+  DEFINE A = INTEGER(PCPF+7,1) #
+        ,U = INTEGER(PCPF+8,1) #
+        ,B = INTEGER(PCPF+9,1) #
+        ,C = INTEGER(PCPF+10,1)#;
+  POINTER PX;
+  REAL T;
+  VALUE ARRAY NUMERIC(4"FFC00000",0,0,0,0,0,0,0,0,0,0,0,0,0,0,4"FFC0");
+%---------------------------------------------------------------------
+  REAL PROCEDURE DC(SZ);
+  VALUE SZ;
+  REAL  SZ;
+  BEGIN
+    REAL S,P;
+    PX:=PCPF;
+    P:=SZ+2;
+    THRU SZ DO S:=*+INTEGER(PX:PX,1)*(P:=*-1);
+    DC:=IF (S:=* MOD 11).[3:3]=0 THEN 0 ELSE (11-S);
+  END OF DC PROCEDURE;
+%---------------------------------------------------------------------
+  PCPF:= CPF;
+  SCAN PCPF FOR T:9 WHILE IN NUMERIC[SIZE(PCPF) & 0 [2:3]];
+  IF T EQL 0 THEN
+     BEGIN
+     REPLACE PCPF + 9 BY DC(9) FOR 1 DIGITS;
+     REPLACE PCPF + 10 BY DC(10) FOR 1 DIGITS;
+     ZCPFDV:=1;
+     END
+  ELSE
+     ZCPFDV:=0;
+END OF ZCPFDV LIB;
+$ PAGE
+$INCLUDE "*B/TPO/STA/INC/ONLINE ON PKBDSGF."
+$ PAGE
+INTEGER PROCEDURE COMPRIME (EO,ED,NUM);
+EBCDIC ARRAY EO, ED [0];
+INTEGER  NUM;
+BEGIN
+TRANSLATETABLE CHANGEFFTOF0 (EBCDIC TO EBCDIC, 48"FF" TO 48"F0");
+INTEGER  SZ;
+POINTER  PO
+        ,PD
+        ;
+PO:=EO;
+PD:=ED;
+SZ:= COMPRIMIR_TEXTO (PO,PD,NUM);
+REPLACE PD BY PD FOR SZ WITH CHANGEFFTOF0;
+COMPRIME:=SZ;
+END OF COMPRIME;
+$ PAGE
+INTEGER PROCEDURE DESCOMPRIME (EO,ED,NUM);
+EBCDIC ARRAY EO, ED [0];
+INTEGER   NUM;
+BEGIN
+REAL      SZ;
+POINTER   PO
+         ,PD
+         ;
+PO:=EO;
+PD:=ED;
+SZ:= DESCOMPRIMIR_TEXTO (PO, PD, NUM);
+DESCOMPRIME:=SZ;
+END OF DESCOMPRIME;
+%******************************************************************
+ $ PAGE
+INTEGER PROCEDURE ZACCESSPASSWORD(ACCESS,PASSW);
+INTEGER ACCESS;
+EBCDIC ARRAY PASSW[0]
+            ;
+BEGIN
+REAL ACTION
+    ,TAM_ACCESSC
+    ,TAM_USERC
+    ,TAM_PASSW
+    ;
+EBCDIC ARRAY DATAIN[0:59]
+            ,USERC[0:23]
+            ,ACCESSC[0:16]
+            ;
+POINTER P;
+ACTION:= 11;    % VALIDA ACCESSCODE/PASSWORD
+REPLACE USERC BY MYSELF.USERCODE;
+REPLACE ACCESSC BY ACCESS FOR 6 DIGITS;
+SCAN P:P:=ACCESSC UNTIL = 48"00";
+TAM_ACCESSC:= OFFSET(P);
+SCAN P:P:=USERC UNTIL = ".";
+TAM_USERC:= OFFSET(P);
+SCAN P:P:=PASSW UNTIL = 48"00";
+TAM_PASSW:= OFFSET(P);
+REPLACE DATAIN BY USERC FOR TAM_USERC
+                 ,"/"
+                 ,ACCESSC FOR TAM_ACCESSC
+                 ,"/"
+                 ,PASSW FOR TAM_PASSW
+                 ,"."
+                 ;
+ZACCESSPASSWORD:=                   %71=CHAR INV. (48"00"?)
+            USERDATA(ACTION,0,0,0,DATAIN);     %43=ERRO DE PASSWORD
+                                               %19=USER NAO EXISTE
+                                               %43=MAT NAO EXISTENTE
+END OF ZACCESSPASSWORD;                        %00=PASSWORD OK
+%
+%
+PROCEDURE ZMINUSTOMAIUS (NO_SPECIAL, WTAM);
+EBCDIC ARRAY NO_SPECIAL[0];
+INTEGER WTAM;
+BEGIN
+  INTEGER INT;
+  STRING  STR;
+  POINTER PS;
+  TRANSLATETABLE LOWER_TO_UPPER
+     (EBCDIC TO EBCDIC,
+     "abcdefghijklmnopqrstuvwxyz" TO
+     "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+     "!&~^{}@#$%*()-_+=[];:/?.,<>`'" TO " ");
+PS:=NO_SPECIAL;
+REPLACE PS BY PS FOR WTAM WITH LOWER_TO_UPPER;
+END ZMINUSTOMAIUS;
+%%%%%%%%%%%%
+PROCEDURE QUICKSORT(IN,ULT,D,TC,TO,A_D);
+EBCDIC ARRAY IN[0];% ARRAY DE ENTRADA
+INTEGER ULT %ULTIMO ELEMENTO DE IN (QTD DE OCCURS)
+       ,D, TC %POSICAO DA CHAVE E TAMANHO DA CHAVE
+       ,TO % TAMANHO DE CADA OCORRENCIA
+       ,A_D % 1=ASC 2=DESC
+       ;
+BEGIN
+EBCDIC ARRAY SWAP[0:0];
+REAL SALVA_ULT
+    ,SALVA_D
+    ;
+BOOLEAN FIRSTTIME;
+PROCEDURE FAZQUICKSORT_ASC (V,  LB, UB);
+EBCDIC ARRAY V[0]; INTEGER LB, UB;
+BEGIN
+REAL    LEFT, RIGHT, PIVOT, LEFTMOST, RIGHTMOST, AUX1;
+LABEL FIM;
+     LEFT   := LEFTMOST:= LB;
+     RIGHT  := RIGHTMOST:= UB;
+     IF ( RIGHTMOST - LEFTMOST ) < 1 THEN
+        GO FIM;
+     PIVOT  :=
+        INTEGER(V[(((LEFTMOST + RIGHTMOST) DIV 2 ) * TO) + D], TC);
+     WHILE LEFT <= RIGHT DO
+        BEGIN
+          WHILE (AUX1:= INTEGER(V[(LEFT * TO) + D], TC)) < PIVOT
+          DO BEGIN LEFT := * + 1;
+             END;
+          WHILE (AUX1:= INTEGER(V[(RIGHT * TO) + D], TC)) > PIVOT
+          DO BEGIN RIGHT:= * - 1;
+             END;
+          IF LEFT <= RIGHT THEN
+             BEGIN
+               REPLACE SWAP[0] BY V[(LEFT * TO)] FOR TO;
+               REPLACE V[(LEFT * TO)] BY V[(RIGHT * TO)] FOR TO;
+               REPLACE V[(RIGHT * TO)] BY SWAP[0] FOR TO;
+               LEFT  := * + 1;
+               RIGHT := * - 1;
+             END;
+        END OF WHILE;
+    FAZQUICKSORT_ASC ( V, LEFTMOST,   RIGHT );
+    FAZQUICKSORT_ASC ( V, LEFT, RIGHTMOST   );
+FIM:
+END FAZQUICKSORT_ASC;
+
+PROCEDURE FAZQUICKSORT_DESC (V,  LB, UB);
+EBCDIC ARRAY V[0]; INTEGER LB, UB;
+BEGIN
+REAL    LEFT, RIGHT, PIVOT, LEFTMOST, RIGHTMOST, AUX1;
+LABEL FIM;
+     LEFT   := LEFTMOST:= LB;
+     RIGHT  := RIGHTMOST:= UB;
+     IF ( RIGHTMOST - LEFTMOST ) < 1 THEN
+        GO FIM;
+     PIVOT  :=
+        INTEGER(V[(((LEFTMOST + RIGHTMOST) DIV 2 ) * TO) + D], TC);
+     WHILE LEFT <= RIGHT DO
+        BEGIN
+          WHILE (AUX1:= INTEGER(V[(LEFT * TO) + D], TC)) > PIVOT
+          DO BEGIN LEFT := * + 1;
+             END;
+          WHILE (AUX1:= INTEGER(V[(RIGHT * TO) + D], TC)) < PIVOT
+          DO BEGIN RIGHT:= * - 1;
+             END;
+          IF LEFT <= RIGHT THEN
+             BEGIN
+               REPLACE SWAP[0] BY V[(LEFT  * TO)] FOR TO;
+               REPLACE V[(LEFT  * TO)] BY V[(RIGHT * TO)] FOR TO;
+               REPLACE V[(RIGHT * TO)] BY SWAP[0] FOR TO;
+               LEFT  := * + 1;
+               RIGHT := * - 1;
+             END;
+        END OF WHILE;
+    FAZQUICKSORT_DESC ( V, LEFTMOST,   RIGHT );
+    FAZQUICKSORT_DESC ( V, LEFT, RIGHTMOST   );
+FIM:
+END FAZQUICKSORT_DESC;
+% MAIN BODY
+IF NOT FIRSTTIME THEN
+   BEGIN
+     RESIZE (SWAP, TO);
+     FIRSTTIME:= TRUE;
+   END;
+SALVA_D:= D;
+SALVA_ULT:= ULT;
+D:= * - 1;
+ULT:= * - 1;
+IF A_D = 1 THEN
+   FAZQUICKSORT_ASC (IN,0,ULT)
+ELSE
+   FAZQUICKSORT_DESC (IN,0,ULT);
+D:= SALVA_D;
+ULT:= SALVA_ULT;
+END OF QUICKSORT;
+
+INTEGER PROCEDURE TROCACHAR(VAL, TAM);
+EBCDIC ARRAY VAL[0];
+INTEGER TAM;
+%TROCA QQ CARACTER NAO VALIDO PARA UNISYS EM VAL, POR BRANCO E RETORNA 1
+BEGIN
+TRUTHSET CHAR0(" .<(+!&$*);-/,_>?:#@");%ORIGINAL DA LIB/129C
+%TRUTHSET CHAR1(" [.<(+!&]$*);^-/|,%_>?`:#@'="""~{}\");% ALL CHARS UNISY
+TRUTHSET CHAR2("abcdefghijklmnopqrstuvxwyz");
+TRUTHSET VALIDOS1(ALPHA OR CHAR0 OR CHAR2);
+POINTER P;
+REAL I;
+
+P:= VAL;
+I:= TAM;
+WHILE I > 0 DO
+BEGIN
+  SCAN P:P FOR I:I WHILE IN VALIDOS1;
+  IF I > 0 THEN BEGIN REPLACE P BY " " FOR 1; TROCACHAR:=1; END;
+END OF WHILE;
+END OF TROCACHAR;
+
+INTEGER PROCEDURE VALIDACHAR(VAL, TAM);
+EBCDIC ARRAY VAL[0];
+INTEGER TAM;
+%DEVOLVE A 1 POSICAO ONDE NAO ACHOU CARACTER VALIDO PARA UNISYS
+BEGIN
+TRUTHSET CHAR0(" .<(+!&$*);-/,_>?:#@");%ORIGINAL DA LIB/129C
+%TRUTHSET CHAR1(" [.<(+!&]$*);^-/|,%_>?`:#@'="""~{}\");% ALL CHARS UNISY
+TRUTHSET CHAR2("abcdefghijklmnopqrstuvxwyz");
+TRUTHSET VALIDOS1(ALPHA OR CHAR0 OR CHAR2);
+POINTER P;
+REAL I;
+
+P:= VAL;
+I:= TAM;
+SCAN P:P FOR I:I WHILE IN VALIDOS1;
+VALIDACHAR:= I;
+END OF VALIDACHAR;
+%******************************************************************
+%     R O T I N A S   A   S E R E M   E X P O R T A D A S
+%******************************************************************
+   EXPORT
+
+        ZABREV
+       ,ZABREVA
+       ,ZABREVB
+       ,ZATIVO
+       ,ZCALCDC
+       ,ZCALCDCBB
+       ,ZCEI
+       ,ZCGC
+       ,ZCHECKSUM
+       ,ZCOMPAC
+       ,ZCOMPILA
+       ,ZCOMPRIME
+       ,ZCONCAT
+       ,ZCPF
+       ,ZCRUNCHPASSWORD
+       ,ZDATA
+       ,ZDATA4
+       ,ZDATVL
+       ,ZDECOMPAC
+       ,ZDIADASEMANA
+       ,ZDISPLAY
+       ,ZDISPLAY2
+       ,ZDMA
+       ,ZDSEC
+       ,ZEDITA
+       ,ZEXPANDE
+       ,ZEXTF
+       ,ZFA
+       ,ZFH
+       ,ZGETFT
+       ,ZGETFT4
+       ,ZGETSTATION
+       ,ZHISTOA
+       ,ZHORA
+       ,ZJULTODMA
+       ,ZLOG
+       ,ZMAISR
+       ,ZMINVN
+       ,ZMOD11
+       ,ZMOVAD
+       ,ZMOVC
+       ,ZMOVND
+       ,ZNUM
+       ,ZPCOMPAC
+       ,ZPDECOMPAC
+       ,ZPESBIN
+       ,ZPMSK
+       ,ZPSKIP
+       ,ZPSPAC
+       ,ZPSPACE
+       ,ZPWRIT
+       ,ZPWRITA
+       ,ZQDATA
+       ,ZSETTXT
+       ,ZSIZE
+       ,ZSPACER
+       ,ZSUBS
+       ,ZTLJOUR
+       ,ZTXT
+       ,ZVERSAO
+       ,ZWRITE
+       ,ZZCGC
+       ,ZINPUTTABLE
+       ,ZOUTPUTTABLE
+       ,ZCGCDV
+       ,ZCEIDV
+       ,ZCPFDV
+       ,COMPRIME
+       ,DESCOMPRIME
+       ,ZDATVL4
+       ,ZACCESSPASSWORD
+       ,ZJULTODMA4
+       ,ZDIADASEMANA4
+       ,ZQDATA4
+       ,ZDSEC4
+       ,ZDMA4
+       ,ZTLJOUR4
+       ,ZMINUSTOMAIUS
+       ,QUICKSORT
+       ,TROCACHAR
+       ,VALIDACHAR
+       ;
+
+FREEZE(TEMPORARY);
+
+END.
+
+
+************************************************************************
+***************      REFERENCIAS CRUZADAS DO FONTE      ***************
+************************************************************************
+
+* LIBRARY - B/TPO/STA/INC/ONLINE        CICLO = 0001VERSAO =   00
+
+************************************************************************
+
+************************************************************************
+***************      REFERENCIAS CRUZADAS DO FONTE      ***************
+************************************************************************
+
+* LIBRARY - B/TPO/STA/INC/ONLINE        CICLO = 0001VERSAO =   00
+
+************************************************************************
