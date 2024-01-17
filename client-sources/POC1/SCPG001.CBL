@@ -5372,7 +5372,7 @@
             MOVE CS-MOTIVO-PEND (INDICE-PENDENCIA) TO
                  CP50-CS-MOT-PENDENCIA (INDICE-PENDENCIA).
 
-       2628-FIM.EXIT.
+       2628-FIM. EXIT.
 
        2629-MONTA-REG-AP.
 
@@ -6789,7 +6789,7 @@
                              WS-MENSAGEM-ZDISPLAY
                        CALL "ZDISPLAY IN DTP/L1" USING
                                                  WS-MENSAGEM-ZDISPLAY,
-                                                 WS-INTEIRO-ZDISPLAY,
+                                                 WS-INTEIRO-ZDISPLAY
                        CALL SYSTEM DMTERMINATE.
 
            ADD 1 TO W77-LIDOS-SEAS.
@@ -10076,7 +10076,7 @@
            WRITE REG-DNT
            ADD 1 TO WS-GRAVADOS-DNT.
 
-       3318-FIM-GRAVA-ARQ-DNT.EXIT.
+       3318-FIM-GRAVA-ARQ-DNT. EXIT.
       *----------------------------
       /
       *--------------------------------------------------
@@ -10091,7 +10091,7 @@
                MOVE VL-CREDITOS   TO WS-VL-DNT-LIDO(WS-IND-DNT).
 
       *-------------------------------------------------
-       3319-FIM-LER-DNT.EXIT.
+       3319-FIM-LER-DNT. EXIT.
       *-------------------------------------------------
       *----------------------------
       /
@@ -10131,7 +10131,7 @@
 
            WRITE   LSUBSISPG-REG FROM LSPG-CAB7 AFTER 1.
 
-       3320-FIM.EXIT.
+       3320-FIM. EXIT.
       *------------------------------
        3320-IMP-VALORES-DET-SPG.
       *------------------------------
@@ -10904,7 +10904,7 @@
       *-----------------------------------*
 
       *-----------------------------------*
-       4500-FIM-VERIFICA-SAL-FAM.EXIT.
+       4500-FIM-VERIFICA-SAL-FAM. EXIT.
       *-----------------------------------*
 
       *-----------------------------------*
@@ -10922,7 +10922,7 @@
 
 
       *-----------------------------------*
-       FIM-VERIFICA.EXIT.
+       FIM-VERIFICA. EXIT.
       *-----------------------------------*
 
 
@@ -11146,7 +11146,7 @@
 
            WRITE REG-DSUBCPG081.
 
-       8000-FIM-BUSCA-CONSIG-EXC.EXIT.
+       8000-FIM-BUSCA-CONSIG-EXC. EXIT.
       *------------------------------
 
        9010-ABRE-DSUBCPG058SPG.
@@ -12175,7 +12175,7 @@
          MOVE ID-CALAMIDADE OF DS-CALAMIDADE TO WS-SISPG-COD-CALAMIDADE
                                                 AUX1-ID-CALAMIDADE.
 
-       9980-PEGA-COD-CALAM-EXIT.EXIT.
+       9980-PEGA-COD-CALAM-EXIT. EXIT.
 
       *-----------------------------------
        9990-VERIFICA-ENT-CLASSE.
@@ -12201,7 +12201,7 @@
             MOVE ZEROS TO SISPG-QTD-ENT-CLASS.
 
       *-----------------------------------
-        9990-FIM-VERIFICA-ENT-CLASSE.EXIT.
+        9990-FIM-VERIFICA-ENT-CLASSE. EXIT.
       *-----------------------------------
       *-----------------------------------------------
        10000-ZERA-VALORES.
@@ -12214,7 +12214,7 @@
               MOVE ZEROS TO SISPG-VL-RUBRICA(IX).
 
       *-----------------------------------------------
-       10000-FIM-ZERA-VALORES.EXIT.
+       10000-FIM-ZERA-VALORES. EXIT.
       *-----------------------------------------------
       *------------------------------
        10010-CRIA-ENT-CLASSE.
@@ -12258,7 +12258,7 @@
            ADD 1 TO WS-GRAV-ENTIDADES.
 
       *---------------------------------
-        10010-FIM-CRIA-ENT-CLASSE.EXIT.
+        10010-FIM-CRIA-ENT-CLASSE. EXIT.
       *---------------------------------
       *------------------------------------
        11000-LIMPA-RUB-ENT.
@@ -12267,7 +12267,7 @@
            MOVE ZEROS TO TB-VL-RUB-ENT(IX).
 
       *------------------------------------
-       11000-LIMPA-RUB-ENT-EXIT.EXIT.
+       11000-LIMPA-RUB-ENT-EXIT. EXIT.
       *------------------------------------
 
       *------------------------------------
@@ -12298,7 +12298,7 @@
            IF IX > 81
               MOVE TAB-CS-RUBR(IX) TO SPGENT-CS-RUBRICA-H(IX - 1).
       *-----------------------------------------------------------
-       9900-MOVE-RUB-HEADER-EXIT.EXIT.
+       9900-MOVE-RUB-HEADER-EXIT. EXIT.
       *-----------------------------------------------------------
 
 

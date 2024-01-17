@@ -1174,6 +1174,8 @@
       ******************************************************************
 
        01  WS-BANCOS-TABELAS REDEFINES WS-TABELA-BANCOS.
+errors*  02 WS-IND PIC 99.
+errors*  02 WS-INDEND PIC 99.       
           02 WS-BANCOS-OC OCCURS 74 INDEXED BY WS-IND WS-INDEND.
            03 WS-NNN-BANCO     PIC 9(03).
            03 WS-NNN-NOME      PIC X(25).

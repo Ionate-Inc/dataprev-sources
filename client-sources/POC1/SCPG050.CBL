@@ -1725,7 +1725,7 @@
        
            MOVE WS-ID-OP-ANT TO TB00233-CHAVE.
            CALL "SETTB00233 IN DTP/LBD/TAB" USING REGISTRO-TB00233, 
-                                               CODE-LAYOUT-TB00233, 
+                                               CODE-LAYOUT-TB00233 
                                             GIVING RETORNO-TB00233.
       *> 
            IF RETORNO-TB00233 = 0
@@ -1749,7 +1749,7 @@
        
            MOVE ZEROS TO WS-TAB-VL-RUBRICA (WS-IND).
        
-       6000-FIM.EXIT.
+       6000-FIM.  EXIT.
       *> ---------------*
        
        7000-SOMA-RUBRICAS.
@@ -1757,7 +1757,7 @@
        
            ADD SISPG-VL-RUBRICA(WS-IND) TO WS-TAB-VL-RUBRICA (WS-IND).
        
-       7000-FIM.EXIT.
+       7000-FIM. EXIT.
       *> --------------*
        
        8000-MOVE-RUBRICAS.
@@ -1765,7 +1765,7 @@
        
            MOVE WS-TAB-VL-RUBRICA (WS-IND) TO SPG51-VL-RUBRICA(WS-IND).
        
-       8000-FIM.EXIT.
+       8000-FIM. EXIT.
       *> --------------*
        
        10000-GRAVA-HEADER.
@@ -1819,7 +1819,7 @@
            ADD   1 TO WS-REGS-GRAVADOS-051.
        
       *> 
-       10000-FIM.EXIT.
+       10000-FIM.  EXIT.
       *> ---------------*
       *> 
        11000-GRAVA-TRAILER.
@@ -1832,7 +1832,7 @@
            MOVE WS-REGS-GRAVADOS-051    TO  SPG51-QTD-REG-T
            WRITE DSUBCPG051-REG-SPG51-TRAILER.
        
-       11000-FIM.EXIT.
+       11000-FIM.  EXIT.
       *> ---------------*
        
       *> %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

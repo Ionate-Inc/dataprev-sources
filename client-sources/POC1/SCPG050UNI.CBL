@@ -8,7 +8,7 @@
       *========================*
        IDENTIFICATION  DIVISION.
       *========================*
-       PROGRAM-ID.      PSUBCPG050SPG.
+errors PROGRAM-ID.      PSUBCPG050SPGUNI.
        DATE-WRITTEN.    15/10/2012.
        DATE-COMPILED.
       ******************************************************************
