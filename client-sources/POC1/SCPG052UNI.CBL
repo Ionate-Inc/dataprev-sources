@@ -515,7 +515,7 @@
                       CREATE DS-CTRL-SEQ-TP-CR
                       MOVE WS-CS-ROT-GER-CRED TO CS-ROT-GER-CRED
                       MOVE 0                  TO ID-BANCO
-errors*                                          NU-ULT-SEQ-TP
+                                                 NU-ULT-SEQ-TP
                    ELSE
                       MOVE "ERRO LOCK ST-CTRL-SEQ-TP-CR."
                         TO  WS-PARAM1-ZDISPLAY
@@ -530,7 +530,7 @@ errors*                                          NU-ULT-SEQ-TP
            MOVE    WS-DATA-TITLE TO WS-DATA-TITLE-SCF.
            MOVE    W77-HORA      TO WS-HORA-TITLE-SCF.
 
-errors*    COMPUTE WS-SEQUENCIAL-TITLE-SCF = NU-ULT-SEQ-TP + 1.
+           COMPUTE WS-SEQUENCIAL-TITLE-SCF = NU-ULT-SEQ-TP + 1.
 
       ***     IF WS-PAR-MOV-CREDITO = "MANU"
       ***        CHANGE  ATTRIBUTE TITLE OF DSUBCPG052SPG
@@ -704,8 +704,8 @@ errors*    COMPUTE WS-SEQUENCIAL-TITLE-SCF = NU-ULT-SEQ-TP + 1.
 
           CLOSE DSUBCPG052SPG RELEASE.
       *
-errors*   MOVE  WS-SEQUENCIAL-TITLE-SCF TO NU-ULT-SEQ-TP.
-errors*   MOVE  WS-DATA-TITLE-SCF-R     TO DT-PROC-SEQ-TP.
+          MOVE  WS-SEQUENCIAL-TITLE-SCF TO NU-ULT-SEQ-TP.
+          MOVE  WS-DATA-TITLE-SCF-R     TO DT-PROC-SEQ-TP.
       *    STORE DS-CTRL-SEQ-TP-CR.
           END-TRANSACTION NO-AUDIT DS-RESTART.
 
