@@ -2,7 +2,7 @@
       *              ROTINA PADRAO DE CHECKPOINT C74,C85               *
       ******************************************************************
        5000-CHECKPOINT.
-           CALL " CALLCHECKPOINT IN MCPSUPPORT"
+           CALL "CALLCHECKPOINT IN MCPSUPPORT"
                 USING  CHECKPOINTDEVICE
                        CHECKPOINTTYPE
                        COMPLETIONCODE
