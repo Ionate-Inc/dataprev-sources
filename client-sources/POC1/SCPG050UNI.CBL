@@ -520,7 +520,7 @@ errors PROGRAM-ID.      PSUBCPG050SPGUNI.
               SET MYSELF(STATUS) TO -1.
 
       *
-           CALL "ZDATA4 IN DTP/L1" USING W77-DATA.
+           CALL "ZDATA4 IN DTP/L1" GIVING W77-DATA.
            MOVE W77-DATA    TO  WS-DATA-INICIO-PROC.
       *
            CALL "ZHORA IN DTP/L1" GIVING W77-HORA.
@@ -1009,7 +1009,7 @@ errors PROGRAM-ID.      PSUBCPG050SPGUNI.
            OPEN OUTPUT LSUBCPG050A.
            OPEN OUTPUT WOFIS.
       *
-           CALL  "ZDATA4  IN DTP/L1" USING W77-DATA.
+           CALL  "ZDATA4  IN DTP/L1" GIVING W77-DATA.
       *
            CALL  "ZHORA  IN DTP/L1" GIVING W77-HORA.
       *

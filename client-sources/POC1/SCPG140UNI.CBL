@@ -1081,7 +1081,7 @@
                                             WS-HORA-R.
            MOVE  WS-HORA                  TO  C02-HORA.
            MOVE  WS-MINUTO                TO  C02-MINUTO.
-           CALL  "ZDATA4 IN DTP/L1"          USING   W77-DDATA
+           CALL  "ZDATA4 IN DTP/L1"   GIVING   W77-DDATA
            MOVE  W77-DDATA              TO  WS-DATA   C01-DATA
                                             W77-DATA-INICIO.
 
@@ -1103,7 +1103,7 @@
                  IF WS-MES-ANTES-6-MESES = 4 OR 6 OR 9 OR 11
                     MOVE 30 TO WS-DIA-ANTES-6-MESES.
       *
-           CALL "ZDATA4 IN DTP/L1" USING  W77-DDATA.
+           CALL "ZDATA4 IN DTP/L1" GIVING  W77-DDATA.
            MOVE W77-DDATA         TO     W77-DATA-INICIO
                                          C01-DATA WS-DATA.
       *     IF WS-ANO OF WS-DATA-R = 00
@@ -3230,7 +3230,7 @@
            CALL  "ZHORA IN DTP/L1"          GIVING  W77-HORA
            MOVE  W77-HORA               TO  W77-HORA-FIM.
 
-           CALL  "ZDATA4 IN DTP/L1"          USING   W77-DDATA
+           CALL  "ZDATA4 IN DTP/L1"   GIVING   W77-DDATA
            MOVE  W77-DDATA              TO  WS-DATA
                                             W77-DATA-FIM.
       *

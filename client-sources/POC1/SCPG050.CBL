@@ -1028,7 +1028,7 @@
               SET MYSELF(STATUS) TO -1.
        
       *> 
-           CALL "ZDATA4 IN DTP/L1" USING W77-DATA.
+           CALL "ZDATA4 IN DTP/L1" GIVING W77-DATA.
            MOVE W77-DATA    TO  WS-DATA-INICIO-PROC.
       *> 
            CALL "ZHORA IN DTP/L1" GIVING W77-HORA.
@@ -1517,7 +1517,7 @@
            OPEN OUTPUT LSUBCPG050A.
            OPEN OUTPUT WOFIS.
       *> 
-           CALL  "ZDATA4  IN DTP/L1" USING W77-DATA.
+           CALL  "ZDATA4  IN DTP/L1" GIVING W77-DATA.
       *> 
            CALL  "ZHORA  IN DTP/L1" GIVING W77-HORA.
       *> 
@@ -1688,7 +1688,7 @@
       *>               ROTINA PADRAO DE CHECKPOINT C74,C85               *
       *> *****************************************************************
        5000-CHECKPOINT.
-           CALL " CALLCHECKPOINT IN MCPSUPPORT"
+           CALL "CALLCHECKPOINT IN MCPSUPPORT"
                 USING  CHECKPOINTDEVICE
                        CHECKPOINTTYPE
                        COMPLETIONCODE

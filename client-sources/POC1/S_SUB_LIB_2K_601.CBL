@@ -39,11 +39,11 @@
       ********** UNISYS Y2K - Linha alterada em 20/03/1999 15:18:44
       *    CALL "ZDSEC IN DTP/L1" USING WS-DATA-INICIO
            CALL "ZDSEC4 IN DTP/L1" USING WS-DATA-INICIO
-                                        WS-DIAS-INICIO
+                        GIVING  WS-DIAS-INICIO
       ********** UNISYS Y2K - Linha alterada em 20/03/1999 15:18:44
       *    CALL "ZDSEC IN DTP/L1" USING WS-DATA-FIM
            CALL "ZDSEC4 IN DTP/L1" USING WS-DATA-FIM
-                                        WS-DIAS-FIM
+                             GIVING   WS-DIAS-FIM
 
            COMPUTE WS-NUM-DIAS = WS-DIAS-FIM - WS-DIAS-INICIO
 
