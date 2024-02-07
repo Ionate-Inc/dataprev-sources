@@ -8,7 +8,7 @@
       *========================*
        IDENTIFICATION  DIVISION.
       *========================*
-       PROGRAM-ID.      PSUBCPG052SPG.
+       PROGRAM-ID.      PSUBCPG052SPGUNI.
        DATE-WRITTEN.    15/10/2012.
        DATE-COMPILED.
       ******************************************************************
