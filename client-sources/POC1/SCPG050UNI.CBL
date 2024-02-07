@@ -510,9 +510,9 @@ errors PROGRAM-ID.      PSUBCPG050SPGUNI.
            CHANGE ATTRIBUTE SECURITYTYPE OF DSUBCPG051SPG TO PUBLIC.
             OPEN OUTPUT DSUBCPG051SPG.
       *
-           CALL "LAYOUT IN DTP/LBD/TAB" USING   FONTE-LAYOUT-TB00233,
-                                                 CODE-LAYOUT-TB00233
-                                        GIVING       RETORNO-TB00233
+      *      CALL "LAYOUT IN DTP/LBD/TAB" USING   FONTE-LAYOUT-TB00233,
+      *                                           CODE-LAYOUT-TB00233
+      *                                  GIVING       RETORNO-TB00233
            IF RETORNO-TB00233 = 2
               MOVE "ERRO ABERTURA TB00233" TO WS-PARAM1-ZDISPLAY
               CALL "ZDISPLAY IN DTP/L1" USING WS-PARAM1-ZDISPLAY,

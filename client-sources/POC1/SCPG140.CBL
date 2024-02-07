@@ -949,18 +949,18 @@
 
 
 
-          CALL "LAYOUT IN DTP/LBD/TAB" USING   FONTE-LAYOUT-TB00233,
-                                                CODE-LAYOUT-TB00233
-                                       GIVING       RETORNO-TB00233.
+      *    CALL "LAYOUT IN DTP/LBD/TAB" USING   FONTE-LAYOUT-TB00233,
+      *                                          CODE-LAYOUT-TB00233
+      *                                 GIVING       RETORNO-TB00233.
           IF RETORNO-TB00233 = 2
              MOVE "ERRO ABERTURA TB00233" TO WS-MSG
              CALL "ZDISPLAY IN DTP/L1" USING WS-MSG
                                              WS-STATUS-BACKUP
              SET MYSELF(STATUS) TO -1.
 
-          CALL "LAYOUT IN DTP/LBD/TAB" USING   FONTE-LAYOUT-TB00494,
-                                                CODE-LAYOUT-TB00494
-                                       GIVING       RETORNO-TB00494.
+      *    CALL "LAYOUT IN DTP/LBD/TAB" USING   FONTE-LAYOUT-TB00494,
+      *                                          CODE-LAYOUT-TB00494
+      *                                 GIVING       RETORNO-TB00494.
           IF RETORNO-TB00494 = 2
              MOVE "ERRO ABERTURA TB00494" TO WS-MSG
              CALL "ZDISPLAY IN DTP/L1" USING WS-MSG
