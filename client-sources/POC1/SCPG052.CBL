@@ -407,7 +407,7 @@
       *-------------*
       *
       ********** UNISYS Y2K - Linha alterada em 28/04/1999 16:45:52
-           CALL "ZDATA4 IN DTP/L1" USING W77-DATA.
+           CALL "ZDATA4 IN DTP/L1" GIVING W77-DATA.
            MOVE W77-DATA    TO  WS-DATA-INICIO-PROC.
       *
            CALL "ZHORA IN DTP/L1" GIVING W77-HORA.
@@ -583,7 +583,7 @@
       *
       ********** UNISYS Y2K - Linha alterada em 28/04/1999 16:45:53
       *    CALL  "ZDATA  IN DTP/L1" USING W77-DATA.
-           CALL  "ZDATA4  IN DTP/L1" USING W77-DATA.
+           CALL  "ZDATA4 IN DTP/L1" GIVING W77-DATA.
       *
            CALL  "ZHORA  IN DTP/L1" GIVING W77-HORA.
       *
