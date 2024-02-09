@@ -791,7 +791,7 @@
            WRITE DSUBCPG051-REG-SPG51-HEADER OF DSUBCPG052SPG.
 
       *
-       10000-FIM.EXIT.
+       10000-FIM. EXIT.
       *---------------*
 
        11000-GRAVA-TRAILER.
@@ -804,7 +804,7 @@
            MOVE WS-REGS-GRAVADOS   TO  SPG51-QTD-REG-T OF DSUBCPG052SPG.
            WRITE DSUBCPG051-REG-SPG51-TRAILER OF DSUBCPG052SPG.
 
-       11000-FIM.EXIT.
+       11000-FIM. EXIT.
       *---------------*
 
       *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
