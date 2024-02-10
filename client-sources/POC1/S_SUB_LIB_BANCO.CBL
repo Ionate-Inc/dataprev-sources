@@ -47,7 +47,11 @@
            03 WS-BPI                   PIC 9(05).
            03 FILLER                   PIC X(20).
 
+       01 WS-IND PIC 99.
+       01 WS-INDEND PIC 99.
+
        01  WS-TABELA-BANCOS.
+         02 WS-001.
            03 WS-001-BANCO     PIC 9(03) VA 001.
            03 WS-001-NOME      PIC X(25) VA "BANCO DO BRASIL          ".
            03 WS-001-FAIXARQUIVO  PIC 9(01) VA 1.
@@ -63,6 +67,7 @@
            03 WS-001-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-001-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-003.      
            03 WS-003-BANCO     PIC 9(03) VA 003.
            03 WS-003-NOME      PIC X(25) VA "AMAZONIA                 ".
            03 WS-003-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -78,6 +83,7 @@
            03 WS-003-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-003-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-004.      
            03 WS-004-BANCO     PIC 9(03) VA 004.
            03 WS-004-NOME      PIC X(25) VA "NORDESTE DO BRASIL ".
            03 WS-004-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -93,6 +99,7 @@
            03 WS-004-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-004-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-008.      
            03 WS-008-BANCO     PIC 9(03) VA 008.
            03 WS-008-NOME      PIC X(25) VA "MERIDIONAL DO BRASIL ".
            03 WS-008-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -108,6 +115,7 @@
            03 WS-008-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-008-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-020.      
            03 WS-020-BANCO     PIC 9(03) VA 020.
            03 WS-020-NOME      PIC X(25) VA "PRODUBAN                 ".
            03 WS-020-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -123,6 +131,7 @@
            03 WS-020-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-020-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-021.      
            03 WS-021-BANCO     PIC 9(03) VA 021.
            03 WS-021-NOME      PIC X(25) VA "BANESTES                 ".
            03 WS-021-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -138,6 +147,7 @@
            03 WS-021-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-021-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-022.      
            03 WS-022-BANCO     PIC 9(03) VA 022.
            03 WS-022-NOME      PIC X(25) VA "CREDIREAL                ".
            03 WS-022-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -153,6 +163,7 @@
            03 WS-022-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-022-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-024.            
            03 WS-024-BANCO     PIC 9(03) VA 024.
            03 WS-024-NOME      PIC X(25) VA "BANDEPE                  ".
            03 WS-024-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -168,6 +179,7 @@
            03 WS-024-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-024-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-026.      
            03 WS-026-BANCO     PIC 9(03) VA 026.
            03 WS-026-NOME      PIC X(25) VA "BANACRE                  ".
            03 WS-026-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -183,6 +195,7 @@
            03 WS-026-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-026-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-027.      
            03 WS-027-BANCO     PIC 9(03) VA 027.
            03 WS-027-NOME      PIC X(25) VA "B E S C ".
            03 WS-027-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -199,6 +212,7 @@
            03 WS-027-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-027-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-028.      
            03 WS-028-BANCO     PIC 9(03) VA 028.
            03 WS-028-NOME      PIC X(25) VA "ESTADO DA BAHIA ".
            03 WS-028-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -214,6 +228,7 @@
            03 WS-028-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-028-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-029.      
            03 WS-029-BANCO     PIC 9(03) VA 029.
            03 WS-029-NOME      PIC X(25) VA "B A N E R J ".
            03 WS-029-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -229,6 +244,7 @@
            03 WS-029-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-029-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-031.      
            03 WS-031-BANCO     PIC 9(03) VA 031.
            03 WS-031-NOME      PIC X(25) VA "B E G ".
            03 WS-031-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -244,6 +260,7 @@
            03 WS-031-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-031-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-032.      
            03 WS-032-BANCO     PIC 9(03) VA 032.
            03 WS-032-NOME      PIC X(25) VA "ESTADO DE MATO GROSSO ".
            03 WS-032-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -259,6 +276,7 @@
            03 WS-032-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-032-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-033.      
            03 WS-033-BANCO     PIC 9(03) VA 033.
            03 WS-033-NOME      PIC X(25) VA "BANESPA                  ".
            03 WS-033-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -274,6 +292,7 @@
            03 WS-033-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-033-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-034.      
            03 WS-034-BANCO     PIC 9(03) VA 034.
            03 WS-034-NOME      PIC X(25) VA "ESTADO DO AMAZONAS ".
            03 WS-034-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -289,6 +308,7 @@
            03 WS-034-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-034-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-035.      
            03 WS-035-BANCO     PIC 9(03) VA 035.
            03 WS-035-NOME      PIC X(25) VA "B E C ".
            03 WS-035-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -304,6 +324,7 @@
            03 WS-035-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-035-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-036.      
            03 WS-036-BANCO     PIC 9(03) VA 036.
            03 WS-036-NOME      PIC X(25) VA "B E M ".
            03 WS-036-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -319,6 +340,7 @@
            03 WS-036-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-036-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-037.      
            03 WS-037-BANCO     PIC 9(03) VA 037.
            03 WS-037-NOME      PIC X(25) VA "ESTADO DO PARA ".
            03 WS-037-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -334,6 +356,7 @@
            03 WS-037-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-037-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-038.      
            03 WS-038-BANCO     PIC 9(03) VA 038.
            03 WS-038-NOME      PIC X(25) VA "BANESTADO                ".
            03 WS-038-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -349,6 +372,7 @@
            03 WS-038-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-038-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-039.      
            03 WS-039-BANCO     PIC 9(03) VA 039.
            03 WS-039-NOME      PIC X(25) VA "ESTADO DO PIAUI ".
            03 WS-039-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -364,6 +388,7 @@
            03 WS-039-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-039-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-041.      
            03 WS-041-BANCO     PIC 9(03) VA 041.
            03 WS-041-NOME      PIC X(25) VA "BANRISUL                 ".
            03 WS-041-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -379,6 +404,7 @@
            03 WS-041-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-041-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-047.      
            03 WS-047-BANCO     PIC 9(03) VA 047.
            03 WS-047-NOME      PIC X(25) VA "ESTADO DE SERGIPE ".
            03 WS-047-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -394,6 +420,7 @@
            03 WS-047-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-047-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-048.      
            03 WS-048-BANCO     PIC 9(03) VA 048.
            03 WS-048-NOME      PIC X(25) VA "BEMGE                    ".
            03 WS-048-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -409,6 +436,7 @@
            03 WS-048-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-048-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-059.      
            03 WS-059-BANCO     PIC 9(03) VA 059.
            03 WS-059-NOME      PIC X(25) VA "ESTADO DE RONDONIA ".
            03 WS-059-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -424,6 +452,7 @@
            03 WS-059-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-059-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-069.      
            03 WS-069-BANCO     PIC 9(03) VA 069.
            03 WS-069-NOME      PIC X(25) VA "BANCO CREFISA S/A        ".
            03 WS-069-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -439,6 +468,7 @@
            03 WS-069-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-069-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-070.      
            03 WS-070-BANCO     PIC 9(03) VA 070.
            03 WS-070-NOME      PIC X(25) VA "BANCO DE BRASILIA ".
            03 WS-070-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -454,6 +484,7 @@
            03 WS-070-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-070-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-077.      
            03 WS-077-BANCO     PIC 9(03) VA 077.
            03 WS-077-NOME      PIC X(25) VA "BANCO INTER S/A          ".
            03 WS-077-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -469,6 +500,7 @@
            03 WS-077-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-077-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-081.      
            03 WS-081-BANCO     PIC 9(03) VA 081.
            03 WS-081-NOME      PIC X(25) VA "BANCO SEGURO S/A         ".
            03 WS-081-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -484,6 +516,7 @@
            03 WS-081-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-081-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-104.      
            03 WS-104-BANCO     PIC 9(03) VA 104.
            03 WS-104-NOME      PIC X(25) VA "CAIXA ECONOMICA FEDERAL ".
            03 WS-104-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -499,6 +532,7 @@
            03 WS-104-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-104-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-121.      
            03 WS-121-BANCO     PIC 9(03) VA 121.
            03 WS-121-NOME      PIC X(25) VA "BANCO AGIBANK S/A        ".
            03 WS-121-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -514,6 +548,7 @@
            03 WS-121-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-121-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-151.      
            03 WS-151-BANCO     PIC 9(03) VA 151.
            03 WS-151-NOME      PIC X(25) VA "NOSSACAIXA               ".
            03 WS-151-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -529,6 +564,7 @@
            03 WS-151-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-151-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-153.      
            03 WS-153-BANCO     PIC 9(03) VA 153.
            03 WS-153-NOME      PIC X(25) VA "CEERS                    ".
            03 WS-153-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -544,6 +580,7 @@
            03 WS-153-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-153-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-212.            
            03 WS-212-BANCO     PIC 9(03) VA 212.
            03 WS-212-NOME      PIC X(25) VA "BANCO ORIGINAL S/A       ".
            03 WS-212-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -559,6 +596,7 @@
            03 WS-212-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-212-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-215.      
            03 WS-215-BANCO     PIC 9(03) VA 215.
            03 WS-215-NOME      PIC X(25) VA "AMERICA DO SUL ".
            03 WS-215-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -574,6 +612,7 @@
            03 WS-215-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-215-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-230.      
            03 WS-230-BANCO     PIC 9(03) VA 230.
            03 WS-230-NOME      PIC X(25) VA "BANDEIRANTES             ".
            03 WS-230-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -589,6 +628,7 @@
            03 WS-230-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-230-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-231.      
            03 WS-231-BANCO     PIC 9(03) VA 231.
            03 WS-231-NOME      PIC X(25) VA "BOAVISTA                 ".
            03 WS-231-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -604,6 +644,7 @@
            03 WS-231-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-231-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-237.      
            03 WS-237-BANCO     PIC 9(03) VA 237.
            03 WS-237-NOME      PIC X(25) VA "BRADESCO                 ".
            03 WS-237-FAIXARQUIVO  PIC 9(01) VA 5.
@@ -619,6 +660,7 @@
            03 WS-237-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-237-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-244.      
            03 WS-244-BANCO     PIC 9(03) VA 244.
            03 WS-244-NOME      PIC X(25) VA "CIDADE                   ".
            03 WS-244-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -647,6 +689,7 @@
       *    03 WS-275-TP-RETORNO   PIC 9(01) VA 0.
       *    03 WS-275-TP-POSSUI    PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-282.      
            03 WS-282-BANCO     PIC 9(03) VA 282.
            03 WS-282-NOME      PIC X(25) VA "BRASILEIRO COMERCIAL ".
            03 WS-282-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -662,6 +705,7 @@
            03 WS-282-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-282-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-291.      
            03 WS-291-BANCO     PIC 9(03) VA 291.
            03 WS-291-NOME      PIC X(25) VA "CREDITO NACIONAL ".
            03 WS-291-FAIXARQUIVO  PIC 9(01) VA 5.
@@ -677,6 +721,7 @@
            03 WS-291-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-291-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-302.      
            03 WS-302-BANCO     PIC 9(03) VA 302.
            03 WS-302-NOME      PIC X(25) VA "PROGRESSO                ".
            03 WS-302-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -692,6 +737,7 @@
            03 WS-302-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-302-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-308.      
            03 WS-308-BANCO     PIC 9(03) VA 308.
            03 WS-308-NOME      PIC X(25) VA "COMERCIAL BANCESA ".
            03 WS-308-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -707,6 +753,7 @@
            03 WS-308-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-308-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-318.      
            03 WS-318-BANCO     PIC 9(03) VA 318.
            03 WS-318-NOME      PIC X(25) VA "BMG                    ".
            03 WS-318-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -722,6 +769,7 @@
            03 WS-318-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-318-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-334.      
            03 WS-334-BANCO     PIC 9(03) VA 334.
            03 WS-334-NOME      PIC X(25) VA "ECONOMICO                ".
            03 WS-334-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -737,6 +785,7 @@
            03 WS-334-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-334-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-336.      
            03 WS-336-BANCO     PIC 9(03) VA 336.
            03 WS-336-NOME      PIC X(25) VA "BANCO C6 S/A             ".
            03 WS-336-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -752,6 +801,7 @@
            03 WS-336-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-336-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-341.      
            03 WS-341-BANCO     PIC 9(03) VA 341.
            03 WS-341-NOME      PIC X(25) VA "ITAU                     ".
            03 WS-341-FAIXARQUIVO  PIC 9(01) VA 5.
@@ -767,6 +817,7 @@
            03 WS-341-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-341-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-344.      
            03 WS-344-BANCO     PIC 9(03) VA 344.
            03 WS-344-NOME      PIC X(25) VA "MERCANTIL DE PERNAMBUCO ".
            03 WS-344-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -782,6 +833,7 @@
            03 WS-344-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-344-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-346.      
            03 WS-346-BANCO     PIC 9(03) VA 346.
            03 WS-346-NOME      PIC X(25) VA "FRANCES E BRASILEIRO ".
            03 WS-346-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -797,6 +849,7 @@
            03 WS-346-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-346-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-347.      
            03 WS-347-BANCO     PIC 9(03) VA 347.
            03 WS-347-NOME      PIC X(25) VA "SUDAMERIS DO BRASIL ".
            03 WS-347-FAIXARQUIVO  PIC 9(01) VA 4.
@@ -812,6 +865,7 @@
            03 WS-347-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-347-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-353.      
            03 WS-353-BANCO     PIC 9(03) VA 353.
            03 WS-353-NOME      PIC X(25) VA "SANTANDER BRASIL S/A ".
            03 WS-353-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -827,6 +881,7 @@
            03 WS-353-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-353-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-356.      
            03 WS-356-BANCO     PIC 9(03) VA 356.
            03 WS-356-NOME      PIC X(25) VA "ABN-AMRO BANK ".
            03 WS-356-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -842,6 +897,7 @@
            03 WS-356-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-356-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-388.      
            03 WS-388-BANCO     PIC 9(03) VA 388.
            03 WS-388-NOME      PIC X(25) VA "MERCANTIL DE DESCONTOS ".
            03 WS-388-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -857,6 +913,7 @@
            03 WS-388-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-388-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-389.      
            03 WS-389-BANCO     PIC 9(03) VA 389.
            03 WS-389-NOME      PIC X(25) VA "MERCANTIL DE BRASIL ".
            03 WS-389-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -872,6 +929,7 @@
            03 WS-389-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-389-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-392.      
            03 WS-392-BANCO     PIC 9(03) VA 392.
            03 WS-392-NOME      PIC X(25) VA "MERCANTIL DE SAO PAULO ".
            03 WS-392-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -887,6 +945,7 @@
            03 WS-392-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-392-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-394.      
            03 WS-394-BANCO     PIC 9(03) VA 394.
            03 WS-394-NOME      PIC X(25) VA "MERCANTIL DE CREDITO ".
            03 WS-394-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -902,6 +961,7 @@
            03 WS-394-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-394-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-399.      
            03 WS-399-BANCO     PIC 9(03) VA 399.
            03 WS-399-NOME      PIC X(25) VA "BAMERINDUS DO BRASIL ".
            03 WS-399-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -917,6 +977,7 @@
            03 WS-399-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-399-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-409.      
            03 WS-409-BANCO     PIC 9(03) VA 409.
            03 WS-409-NOME      PIC X(25) VA "UNIBANCO                 ".
            03 WS-409-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -932,6 +993,7 @@
            03 WS-409-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-409-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-415.      
            03 WS-415-BANCO     PIC 9(03) VA 415.
            03 WS-415-NOME      PIC X(25) VA "NACIONAL                 ".
            03 WS-415-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -947,6 +1009,7 @@
            03 WS-415-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-415-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-420.      
            03 WS-420-BANCO     PIC 9(03) VA 420.
            03 WS-420-NOME      PIC X(25) VA "BANORTE                  ".
            03 WS-420-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -962,6 +1025,7 @@
            03 WS-420-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-420-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-422.      
            03 WS-422-BANCO     PIC 9(03) VA 422.
            03 WS-422-NOME      PIC X(25) VA "SAFRA                    ".
            03 WS-422-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -977,6 +1041,7 @@
            03 WS-422-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-422-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-424.      
            03 WS-424-BANCO     PIC 9(03) VA 424.
            03 WS-424-NOME      PIC X(25) VA "NOROESTE                 ".
            03 WS-424-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -992,6 +1057,7 @@
            03 WS-424-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-424-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-453.      
            03 WS-453-BANCO     PIC 9(03) VA 453.
            03 WS-453-NOME      PIC X(25) VA "RURAL                    ".
            03 WS-453-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -1007,6 +1073,7 @@
            03 WS-453-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-453-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-466.      
            03 WS-466-BANCO     PIC 9(03) VA 466.
            03 WS-466-NOME      PIC X(25) VA "MITSUBISH BRASILEIRO ".
            03 WS-466-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -1022,6 +1089,7 @@
            03 WS-466-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-466-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-483.      
            03 WS-483-BANCO     PIC 9(03) VA 483.
            03 WS-483-NOME      PIC X(25) VA "AGRIMISA                 ".
            03 WS-483-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -1037,6 +1105,7 @@
            03 WS-483-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-483-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-623.      
            03 WS-623-BANCO     PIC 9(03) VA 623.
            03 WS-623-NOME      PIC X(25) VA "BANCO PAN S/A            ".
            03 WS-623-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -1052,6 +1121,7 @@
            03 WS-623-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-623-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-641.      
            03 WS-641-BANCO     PIC 9(03) VA 641.
            03 WS-641-NOME      PIC X(25) VA "EXCEL ECONOMICO ".
            03 WS-641-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -1067,6 +1137,7 @@
            03 WS-641-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-641-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-645.      
            03 WS-645-BANCO     PIC 9(03) VA 645.
            03 WS-645-NOME      PIC X(25) VA "ESTADO DE RORAIMA ".
            03 WS-645-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -1082,6 +1153,7 @@
            03 WS-645-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-645-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-707.      
            03 WS-707-BANCO     PIC 9(03) VA 707.
            03 WS-707-NOME      PIC X(25) VA "BANCO DAYCOVAL S/A       ".
            03 WS-707-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -1097,6 +1169,7 @@
            03 WS-707-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-707-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-748.      
            03 WS-748-BANCO     PIC 9(03) VA 748.
            03 WS-748-NOME      PIC X(25) VA "BANSICREDI               ".
            03 WS-748-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -1112,6 +1185,7 @@
            03 WS-748-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-748-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-756.      
            03 WS-756-BANCO     PIC 9(03) VA 756.
            03 WS-756-NOME      PIC X(25) VA "BANCOOB                  ".
            03 WS-756-FAIXARQUIVO  PIC 9(01) VA 3.
@@ -1127,6 +1201,7 @@
            03 WS-756-TP-ESPECIAL  PIC 9(01) VA 1.
            03 WS-756-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-888.      
            03 WS-888-BANCO     PIC 9(03) VA 888.
            03 WS-888-NOME      PIC X(25) VA "CORREIOS                 ".
            03 WS-888-FAIXARQUIVO  PIC 9(01) VA 2.
@@ -1142,6 +1217,7 @@
            03 WS-888-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-888-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-953.      
            03 WS-953-BANCO     PIC 9(03) VA 953.
            03 WS-953-NOME      PIC X(25) VA "SICREDI - SISTEMA C.COOP ".
            03 WS-953-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -1157,6 +1233,7 @@
            03 WS-953-TP-ESPECIAL  PIC 9(01) VA 0.
            03 WS-953-TP-IRREGDIA  PIC 9(01) VA 0.
       ******************************************************************
+         02 WS-998.      
            03 WS-998-BANCO     PIC 9(03) VA 998.
            03 WS-998-NOME      PIC X(25) VA "EMPRESAS  CONVENENTES ".
            03 WS-998-FAIXARQUIVO  PIC 9(01) VA 6.
@@ -1174,8 +1251,6 @@
       ******************************************************************
 
        01  WS-BANCOS-TABELAS REDEFINES WS-TABELA-BANCOS.
-errors*  02 WS-IND PIC 99.
-errors*  02 WS-INDEND PIC 99.       
           02 WS-BANCOS-OC OCCURS 74 INDEXED BY WS-IND WS-INDEND.
            03 WS-NNN-BANCO     PIC 9(03).
            03 WS-NNN-NOME      PIC X(25).
