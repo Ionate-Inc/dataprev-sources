@@ -1725,7 +1725,7 @@
        
            MOVE WS-ID-OP-ANT TO TB00233-CHAVE.
            CALL "SETTB00233 IN DTP/LBD/TAB" USING REGISTRO-TB00233, 
-                                               CODE-LAYOUT-TB00233 
+                       CODE-LAYOUT-TB00233, REGISTRO-TB00233-R
                                             GIVING RETORNO-TB00233.
       *> 
            IF RETORNO-TB00233 = 0
