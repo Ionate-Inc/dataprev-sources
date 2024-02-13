@@ -1967,7 +1967,7 @@
               MOVE CS-MUNI-SINPAS    OF REGISTRO-TB00233-R
                                      TO WS-CS-MUNIC-SINPAS-TAB
               CALL "SETTB00494 IN DTP/LBD/TAB" USING REGISTRO-TB00494,
-                                                  CODE-LAYOUT-TB00494
+                       CODE-LAYOUT-TB00494, REGISTRO-TB00494-R
                                                GIVING RETORNO-TB00494
               IF RETORNO-TB00494 = 0
                  MOVE CS-TIPO-MICRO-REG OF REGISTRO-TB00494-R
