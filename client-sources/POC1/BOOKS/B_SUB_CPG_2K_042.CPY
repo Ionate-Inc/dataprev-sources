@@ -10,7 +10,7 @@
       *                                      *
       ****************************************
       *
-       01  WS-ANO-TAB-FERIADO              PIC 9(04) VALUE 2023.
+       01  WS-ANO-TAB-FERIADO              PIC 9(04) VALUE 2024.
       *
        01  TABELA-FERIADOS.
            05  FILLER  PIC X(08)  VALUE  "01000000".
